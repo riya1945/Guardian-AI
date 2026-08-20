@@ -15,10 +15,6 @@ from sklearn.metrics import (
 from sklearn.preprocessing import OneHotEncoder
 
 
-# ============================================================
-# Paths
-# ============================================================
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATA_FILE = BASE_DIR / "data" / "synthetic_training_data.csv"
@@ -28,11 +24,6 @@ MODEL_DIR = BASE_DIR / "models"
 MODEL_FILE = MODEL_DIR / "reward_model.joblib"
 
 METRICS_FILE = MODEL_DIR / "reward_model_metrics.json"
-
-
-# ============================================================
-# Configuration
-# ============================================================
 
 TARGET = "units_sold"
 
@@ -86,10 +77,6 @@ NUMERIC_FEATURES = [
 ]
 
 
-# ============================================================
-# Load data
-# ============================================================
-
 def load_data():
     print("Loading training data...")
 
@@ -113,11 +100,6 @@ def load_data():
     )
 
     return df
-
-
-# ============================================================
-# Time-based split
-# ============================================================
 
 def split_data(df):
     print("\nCreating time-based train/validation/test split...")
@@ -161,16 +143,10 @@ def split_data(df):
     return train, validation, test
 
 
-# ============================================================
-# Prepare features
-# ============================================================
 def prepare_features(df):
 
     X = df[FEATURES].copy()
 
-    # Demand is extremely right-skewed.
-    # Log transformation makes the regression target
-    # much easier to learn.
     y = np.log1p(
         df[TARGET].astype(float)
     )
@@ -182,10 +158,6 @@ def prepare_features(df):
     X = X.fillna(0)
     return X, y
 
-
-# ============================================================
-# Build model
-# ============================================================
 
 def build_model():
 
@@ -206,12 +178,7 @@ def build_model():
     )
 
     model = HistGradientBoostingRegressor(
-    # max_iter=300,
-    # learning_rate=0.06,
-    # max_leaf_nodes=31,
-    # min_samples_leaf=30,
-    # l2_regularization=2.0,
-    # random_state=42,
+   
     max_iter=120,
 learning_rate=0.08,
 max_leaf_nodes=15,
@@ -221,10 +188,6 @@ l2_regularization=2.0,
 
     return preprocessor, model
 
-
-# ============================================================
-# Evaluation
-# ============================================================
 def evaluate(
     name,
     pipeline,
@@ -321,9 +284,6 @@ def evaluate(
         "log_rmse": float(log_rmse),
         "log_r2": float(log_r2),
     }
-# ============================================================
-# Main
-# ============================================================
 
 def main():
 
@@ -332,21 +292,15 @@ def main():
         exist_ok=True,
     )
 
-    # --------------------------------------------------------
-    # Load
-    # --------------------------------------------------------
+   
 
     df = load_data()
 
-    # --------------------------------------------------------
-    # Split
-    # --------------------------------------------------------
+
 
     train, validation, test = split_data(df)
 
-    # --------------------------------------------------------
-    # Features
-    # --------------------------------------------------------
+ 
 
     X_train, y_train = prepare_features(train)
 
@@ -363,15 +317,10 @@ def main():
         f"{X_train.shape}"
     )
 
-    # --------------------------------------------------------
-    # Build preprocessing + model
-    # --------------------------------------------------------
+ 
 
     preprocessor, model = build_model()
 
-    # --------------------------------------------------------
-    # Transform data
-    # --------------------------------------------------------
 
     print("\nFitting feature preprocessing...")
 
@@ -398,9 +347,6 @@ def main():
         X_train_transformed.shape,
     )
 
-    # --------------------------------------------------------
-    # Train
-    # --------------------------------------------------------
 
     print("\nTraining reward model...")
 
@@ -411,9 +357,6 @@ def main():
 
     print("Training complete.")
 
-    # --------------------------------------------------------
-    # Validation
-    # --------------------------------------------------------
 
     validation_metrics = evaluate(
         "Validation",
@@ -422,9 +365,7 @@ def main():
         y_validation,
     )
 
-    # --------------------------------------------------------
-    # Test
-    # --------------------------------------------------------
+    
 
     test_metrics = evaluate(
         "Test",
@@ -433,9 +374,7 @@ def main():
         y_test,
     )
 
-    # --------------------------------------------------------
-    # Save model + preprocessor together
-    # --------------------------------------------------------
+  
 
     pipeline = {
     "preprocessor": preprocessor,
@@ -456,9 +395,6 @@ def main():
 
     print(MODEL_FILE)
 
-    # --------------------------------------------------------
-    # Save metrics
-    # --------------------------------------------------------
 
     metrics = {
         "target": TARGET,

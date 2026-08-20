@@ -8,9 +8,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 
-# ============================================================
+
 # Paths
-# ============================================================
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,9 +21,8 @@ MODEL_FILE = (
 )
 
 
-# ============================================================
 # Load reward model
-# ============================================================
+
 
 print("Loading Guardian AI reward model...")
 
@@ -35,9 +34,9 @@ MODEL = pipeline["model"]
 print("Reward model loaded successfully.")
 
 
-# ============================================================
+
 # FastAPI
-# ============================================================
+
 
 app = FastAPI(
     title="Guardian AI - Regret Engine",
@@ -49,9 +48,8 @@ app = FastAPI(
 )
 
 
-# ============================================================
 # Decision Input
-# ============================================================
+
 
 class Decision(BaseModel):
 
@@ -86,9 +84,9 @@ class Decision(BaseModel):
     season: str | None = None
 
 
-# ============================================================
+
 # Candidate prices
-# ============================================================
+
 
 N_PRICE_ALTERNATIVES = 5
 
@@ -132,9 +130,9 @@ def generate_candidate_prices(
     return candidates
 
 
-# ============================================================
+
 # Build model features
-# ============================================================
+
 
 def build_features(
     decision: Decision,
@@ -222,9 +220,6 @@ def build_features(
     )
 
 
-# ============================================================
-# Predict demand
-# ============================================================
 
 def predict_demand(
     decision: Decision,
@@ -254,11 +249,6 @@ def predict_demand(
         0.0,
         float(predicted_demand),
     )
-
-
-# ============================================================
-# Calculate regret
-# ============================================================
 
 def calculate_regret(
     decision: Decision,
@@ -414,9 +404,6 @@ def calculate_regret(
     }
 
 
-# ============================================================
-# API Endpoint
-# ============================================================
 
 @app.post("/calculate-regret")
 def calculate_regret_endpoint(
@@ -438,10 +425,6 @@ def calculate_regret_endpoint(
             detail=str(e),
         )
 
-
-# ============================================================
-# Health Check
-# ============================================================
 
 @app.get("/health")
 def health():

@@ -5,9 +5,9 @@ import pandas as pd
 from pathlib import Path
 
 
-# ============================================================
+
 # Paths
-# ============================================================
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,26 +29,19 @@ OUTPUT_FILE = (
     / "regret_results.csv"
 )
 
-
-# ============================================================
 # Configuration
-# ============================================================
+
 
 N_PRICE_ALTERNATIVES = 5
 
 MIN_PRICE_MULTIPLIER = 0.90
 MAX_PRICE_MULTIPLIER = 1.10
 
-# Number of historical observations processed at once.
 BATCH_SIZE = 5000
 
-# Set to None for the final full run.
-# Use 50_000 for testing.
+
 MAX_ROWS = None
 
-# ============================================================
-# Load model
-# ============================================================
 
 def load_model():
 
@@ -71,9 +64,9 @@ def load_model():
     return preprocessor, model, features
 
 
-# ============================================================
+
 # Load data
-# ============================================================
+
 
 def load_data():
 
@@ -104,9 +97,8 @@ def load_data():
     return df
 
 
-# ============================================================
 # Generate candidate prices
-# ============================================================
+
 
 def generate_candidate_multipliers():
 
@@ -117,9 +109,9 @@ def generate_candidate_multipliers():
     )
 
 
-# ============================================================
+
 # Build batch counterfactual features
-# ============================================================
+
 
 def build_batch_features(
     df,
@@ -128,11 +120,6 @@ def build_batch_features(
 
     n_rows = len(df)
     n_prices = len(candidate_prices)
-
-    # --------------------------------------------------------
-    # Repeat each historical observation for every candidate
-    # price.
-    # --------------------------------------------------------
 
     repeated = df.loc[
         df.index.repeat(n_prices)
@@ -143,9 +130,6 @@ def build_batch_features(
         n_rows,
     )
 
-    # --------------------------------------------------------
-    # Build features exactly as during training.
-    # --------------------------------------------------------
 
     X = pd.DataFrame()
 
@@ -238,10 +222,6 @@ def build_batch_features(
     return repeated, X
 
 
-# ============================================================
-# Process one batch
-# ============================================================
-
 def process_batch(
     df_batch,
     preprocessor,
@@ -250,11 +230,6 @@ def process_batch(
 
     multipliers = generate_candidate_multipliers()
 
-    # --------------------------------------------------------
-    # Candidate prices.
-    #
-    # 7 alternatives + actual price.
-    # --------------------------------------------------------
 
     actual_prices = (
         df_batch["price"]
@@ -268,7 +243,6 @@ def process_batch(
         * multipliers[None, :]
     )
 
-    # Add actual historical price.
     candidate_matrix = np.concatenate(
         [
             candidate_matrix,
@@ -277,15 +251,11 @@ def process_batch(
         axis=1,
     )
 
-    # Round to realistic precision.
+
     candidate_matrix = np.round(
         candidate_matrix,
         2,
     )
-
-    # --------------------------------------------------------
-    # Flatten candidates.
-    # --------------------------------------------------------
 
     flat_prices = (
         candidate_matrix
@@ -295,9 +265,6 @@ def process_batch(
     n_rows = len(df_batch)
     n_candidates = candidate_matrix.shape[1]
 
-    # --------------------------------------------------------
-    # Repeat rows.
-    # --------------------------------------------------------
 
     repeated = df_batch.loc[
         df_batch.index.repeat(
@@ -309,9 +276,6 @@ def process_batch(
         flat_prices
     )
 
-    # --------------------------------------------------------
-    # Construct model features.
-    # --------------------------------------------------------
 
     X = pd.DataFrame()
 
@@ -397,17 +361,10 @@ def process_batch(
 
     X = X.fillna(0)
 
-    # --------------------------------------------------------
-    # ONE preprocessing operation.
-    # --------------------------------------------------------
 
     X_transformed = (
         preprocessor.transform(X)
     )
-
-    # --------------------------------------------------------
-    # ONE model prediction operation.
-    # --------------------------------------------------------
 
     predicted_log = model.predict(
         X_transformed
@@ -422,10 +379,7 @@ def process_batch(
         0,
     )
 
-    # --------------------------------------------------------
-    # Predicted revenue.
-    # --------------------------------------------------------
-
+  
     predicted_revenue = (
         flat_prices
         * predicted_demand
@@ -447,9 +401,6 @@ def process_batch(
         )
     )
 
-    # --------------------------------------------------------
-    # Best counterfactual.
-    # --------------------------------------------------------
 
     best_indices = (
         predicted_revenue
@@ -483,12 +434,7 @@ def process_batch(
         ]
     )
 
-    # --------------------------------------------------------
-    # Actual historical price.
-    #
-    # Actual price was appended as the LAST candidate.
-    # --------------------------------------------------------
-
+   
     actual_predicted_demand = (
         predicted_demand[:, -1]
     )
@@ -496,10 +442,6 @@ def process_batch(
     actual_predicted_revenue = (
         predicted_revenue[:, -1]
     )
-
-    # --------------------------------------------------------
-    # Regret.
-    # --------------------------------------------------------
 
     regret = (
         best_revenues
@@ -519,9 +461,7 @@ def process_batch(
         0,
     )
 
-    # --------------------------------------------------------
-    # Decision quality.
-    # --------------------------------------------------------
+ 
 
     decision_quality = np.where(
         regret_percentage < 5,
@@ -532,10 +472,6 @@ def process_batch(
             "HIGH_REGRET",
         ),
     )
-
-    # --------------------------------------------------------
-    # Results.
-    # --------------------------------------------------------
 
     results = pd.DataFrame(
         {
@@ -642,9 +578,6 @@ def run_regret_engine(
     )
 
 
-# ============================================================
-# Save results
-# ============================================================
 
 def save_results(results):
 
@@ -667,9 +600,6 @@ def save_results(results):
     )
 
 
-# ============================================================
-# Summary
-# ============================================================
 
 def print_summary(results):
 
@@ -754,10 +684,6 @@ def print_summary(results):
         )
     )
 
-
-# ============================================================
-# Main
-# ============================================================
 
 def main():
 
