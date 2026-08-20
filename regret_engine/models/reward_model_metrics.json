@@ -1,0 +1,37 @@
+{
+    "target": "units_sold",
+    "features": [
+        "StockCode",
+        "price",
+        "log_price",
+        "price_change",
+        "price_ratio",
+        "price_vs_historical_avg",
+        "previous_units",
+        "previous_price",
+        "rolling_7d_units",
+        "rolling_30d_units",
+        "demand_trend",
+        "demand_momentum",
+        "day_of_week",
+        "month",
+        "year",
+        "is_weekend"
+    ],
+    "validation": {
+        "mae": 3.676189880886601,
+        "rmse": 5.671877215879477,
+        "r2": 0.8462925527546762,
+        "log_mae": 0.3013028403120237,
+        "log_rmse": 0.38615556553147223,
+        "log_r2": 0.7909035807193306
+    },
+    "test": {
+        "mae": 3.621578397069205,
+        "rmse": 5.543640241459986,
+        "r2": 0.8419271889631267,
+        "log_mae": 0.306876282073246,
+        "log_rmse": 0.3949473044082938,
+        "log_r2": 0.7853922140143332
+    }
+}
