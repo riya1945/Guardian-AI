@@ -11,7 +11,7 @@ uvicorn
 httpx
 
 # persistent storage
-psycopg[binary]
+pyexasol
 
 # tests
 pytest

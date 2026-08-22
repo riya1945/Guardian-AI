@@ -4,22 +4,21 @@ import json
 
 from regret_engine.src.config import load_settings
 from regret_engine.src.embeddings import get_embedding_provider
-from regret_engine.src.persistence import SupabaseVectorStore, ensure_schema
+from regret_engine.src.persistence import ExasolVectorStore, ensure_schema
 from regret_engine.src.rag_explainer import load_knowledge_chunks
 
 
 def main() -> None:
     settings = load_settings()
-    if not settings.database_url:
-        raise SystemExit("GUARDIAN_DATABASE_URL or SUPABASE_DB_URL is required.")
+    if not (settings.exasol_dsn and settings.exasol_user and settings.exasol_password):
+        raise SystemExit("EXASOL_DSN, EXASOL_USER, and EXASOL_PASSWORD are required.")
 
-    ensure_schema(settings.database_url)
+    ensure_schema(settings)
     chunks = load_knowledge_chunks()
     provider = get_embedding_provider(settings)
-    vector_store = SupabaseVectorStore(
-        database_url=settings.database_url,
+    vector_store = ExasolVectorStore(
+        settings=settings,
         embedding_provider=provider,
-        auto_migrate=False,
     )
     vector_store.ingest(chunks)
 

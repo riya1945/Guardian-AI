@@ -1,6 +1,6 @@
 # Guardian-AI
 
-Guardian-AI is a pricing decision intelligence demo. It combines the existing regret engine with a RAG explain layer, Supabase persistence, pgvector retrieval, optional free-tier LLM providers, and a browser dashboard.
+Guardian-AI is a pricing decision intelligence demo. It combines the existing regret engine with a RAG explain layer, Exasol persistence, Exasol-backed evidence retrieval, optional free-tier LLM providers, and a browser dashboard.
 
 ## What Exists
 
@@ -33,7 +33,7 @@ Revenue is treated as INR in the API output. The included dataset is synthetic a
                 Evidence Context
                        |
                        v
-          Deterministic Explanation Generator
+          Groq/Gemini or Deterministic Generator
                        |
                        v
                     Dashboard
@@ -59,15 +59,14 @@ POST /calculate-regret
 
 ## Persistence
 
-Guardian-AI supports Supabase Postgres as the persistent store. Set `GUARDIAN_DATABASE_URL` or `SUPABASE_DB_URL` and the app will create the required tables/functions on startup when `GUARDIAN_AUTO_MIGRATE=true`.
+Guardian-AI supports Exasol as the persistent store. Set `EXASOL_DSN`, `EXASOL_USER`, and `EXASOL_PASSWORD`; the app creates required schema/tables on startup when `GUARDIAN_AUTO_MIGRATE=true`.
 
 Persistent objects:
 
-- `guardian_decisions`: scored decision records and explanation payloads
-- `guardian_knowledge_chunks`: chunked policy/incident knowledge with `vector(768)` embeddings
-- `match_guardian_knowledge_chunks`: pgvector similarity search function
+- `GUARDIAN_AI.DECISIONS`: scored decision records and explanation payloads
+- `GUARDIAN_AI.KNOWLEDGE_CHUNKS`: chunked policy/incident knowledge with serialized 768-dim embeddings
 
-When no database URL is configured, the app falls back to memory for local tests.
+When Exasol credentials are not configured, the app falls back to memory for local tests.
 
 ## RAG Explain Layer
 
@@ -76,7 +75,7 @@ Knowledge files live under `regret_engine/knowledge/`. They are synthetic projec
 The RAG pipeline:
 
 ```text
-Markdown docs -> chunking -> 768-dim embeddings -> Supabase pgvector -> top-k retrieval -> grounded explanation
+Markdown docs -> chunking -> 768-dim embeddings -> Exasol chunk table -> Python cosine top-k retrieval -> grounded explanation
 ```
 
 Default embeddings use a deterministic hash provider so tests never call external APIs. Set `GUARDIAN_EMBEDDING_PROVIDER=gemini` and `GEMINI_API_KEY` to use Gemini embeddings.
@@ -153,10 +152,15 @@ GET  /dashboard
 Environment variables:
 
 ```text
-GUARDIAN_DATABASE_URL         Supabase Postgres connection string
-GUARDIAN_AUTO_MIGRATE        true by default; creates schema.sql objects
-GUARDIAN_STORAGE_BACKEND     auto, postgres, or memory
-GUARDIAN_VECTOR_BACKEND      auto, supabase, or memory
+EXASOL_DSN                   host:8563
+EXASOL_USER                  Exasol username
+EXASOL_PASSWORD              Exasol password
+EXASOL_SCHEMA                GUARDIAN_AI by default
+EXASOL_ENCRYPTION            true by default
+EXASOL_COMPRESSION           true by default
+GUARDIAN_AUTO_MIGRATE        true by default; creates Exasol schema objects
+GUARDIAN_STORAGE_BACKEND     auto, exasol, or memory
+GUARDIAN_VECTOR_BACKEND      auto, exasol, or memory
 GUARDIAN_EMBEDDING_PROVIDER  hash or gemini
 GUARDIAN_EMBEDDING_DIM       768
 LLM_CHAIN                    groq,gemini,deterministic
@@ -170,10 +174,10 @@ GEMINI_EMBEDDING_MODEL       gemini-embedding-001 by default
 Apply schema manually if preferred:
 
 ```bash
-psql "$GUARDIAN_DATABASE_URL" -f regret_engine/db/schema.sql
+exaplus -c "$EXASOL_DSN" -u "$EXASOL_USER" -p "$EXASOL_PASSWORD" -f regret_engine/db/exasol_schema.sql
 ```
 
-Or run the bundled setup script, which applies schema and ingests the knowledge corpus into pgvector:
+Or run the bundled setup script, which applies schema and ingests the knowledge corpus into Exasol:
 
 ```bash
 python -m regret_engine.scripts.setup_persistence
@@ -219,7 +223,7 @@ Tests cover:
 ## Limitations
 
 - Training data is synthetic.
-- Supabase Postgres is used only when `GUARDIAN_DATABASE_URL` or `SUPABASE_DB_URL` is configured.
-- pgvector is used only when database connection succeeds; tests use in-memory vectors.
+- Exasol is used only when `EXASOL_DSN`, `EXASOL_USER`, and `EXASOL_PASSWORD` are configured.
+- Evidence embeddings are stored in Exasol as JSON text and ranked with Python cosine similarity.
 - Groq/Gemini are optional and skipped when keys are missing.
 - Confidence is an explainability score derived from model context and evidence coverage, not model calibration.

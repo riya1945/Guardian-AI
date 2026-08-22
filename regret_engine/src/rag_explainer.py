@@ -13,7 +13,7 @@ from regret_engine.src.llm_provider import (
     LlmUnavailable,
     build_provider_chain,
 )
-from regret_engine.src.persistence import InMemoryVectorStore, SupabaseVectorStore
+from regret_engine.src.persistence import ExasolVectorStore, InMemoryVectorStore
 from regret_engine.src.schemas import (
     DecisionRecord,
     EvidenceItem,
@@ -144,21 +144,25 @@ class RagExplainer:
             explanation=draft.explanation,
         )
 
-    def _build_vector_store(self) -> InMemoryVectorStore | SupabaseVectorStore:
+    def _build_vector_store(self) -> InMemoryVectorStore | ExasolVectorStore:
         wants_memory = self.settings.vector_backend == "memory"
-        if self.settings.vector_backend == "supabase" and not self.settings.database_url:
-            raise ValueError("GUARDIAN_DATABASE_URL is required for Supabase vector backend.")
-        if self.settings.database_url and not wants_memory:
+        has_exasol = bool(
+            self.settings.exasol_dsn
+            and self.settings.exasol_user
+            and self.settings.exasol_password
+        )
+        if self.settings.vector_backend == "exasol" and not has_exasol:
+            raise ValueError("EXASOL_DSN, EXASOL_USER, and EXASOL_PASSWORD are required.")
+        if has_exasol and not wants_memory:
             try:
-                store = SupabaseVectorStore(
-                    database_url=self.settings.database_url,
+                store = ExasolVectorStore(
+                    settings=self.settings,
                     embedding_provider=self.embedding_provider,
-                    auto_migrate=self.settings.auto_migrate,
                 )
                 store.ingest(self.chunks)
                 return store
             except Exception:
-                if self.settings.vector_backend == "supabase":
+                if self.settings.vector_backend == "exasol":
                     raise
 
         return InMemoryVectorStore(

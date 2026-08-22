@@ -1,26 +1,25 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from regret_engine.src.config import Settings
-from regret_engine.src.embeddings import EmbeddingProvider, to_pgvector
+from regret_engine.src.embeddings import EmbeddingProvider
 from regret_engine.src.schemas import DecisionRecord, EvidenceItem, KnowledgeChunk
 
 
 try:
-    import psycopg
-    from psycopg.rows import dict_row
+    import pyexasol
 except ImportError:
-    psycopg = None
-    dict_row = None
+    pyexasol = None
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SCHEMA_FILE = BASE_DIR / "db" / "schema.sql"
+SCHEMA_FILE = BASE_DIR / "db" / "exasol_schema.sql"
 
 
 class PersistenceUnavailable(RuntimeError):
@@ -59,56 +58,65 @@ class InMemoryDecisionRepository:
         return len(self.records)
 
 
-class PostgresDecisionRepository:
-    backend_name = "postgres"
+class ExasolDecisionRepository:
+    backend_name = "exasol"
 
-    def __init__(self, database_url: str, auto_migrate: bool = True):
-        if psycopg is None or dict_row is None:
-            raise PersistenceUnavailable("psycopg is not installed.")
-        self.database_url = database_url
-        if auto_migrate:
-            ensure_schema(database_url)
-        self._conn = _connect(self.database_url)
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        if settings.auto_migrate:
+            ensure_schema(settings)
+        self._conn = _connect(settings)
 
     def save(self, record: DecisionRecord) -> None:
         payload = _model_dump(record)
         input_payload = _model_dump(record.input)
         self._conn.execute(
             """
-            insert into guardian_decisions (
-                decision_id,
-                occurred_at,
-                sku,
-                price,
-                risk_level,
-                regret_score,
-                confidence,
-                input_json,
-                record_json
-            )
-            values (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::jsonb)
-            on conflict (decision_id) do update set
-                occurred_at = excluded.occurred_at,
-                sku = excluded.sku,
-                price = excluded.price,
-                risk_level = excluded.risk_level,
-                regret_score = excluded.regret_score,
-                confidence = excluded.confidence,
-                input_json = excluded.input_json,
-                record_json = excluded.record_json,
-                updated_at = now()
+            DELETE FROM {schema!i}.DECISIONS
+            WHERE DECISION_ID={decision_id!s}
             """,
-            (
-                record.decision_id,
-                record.timestamp,
-                record.sku,
-                record.price,
-                record.risk_level,
-                record.regret_score,
-                record.confidence,
-                json.dumps(input_payload),
-                json.dumps(payload),
-            ),
+            {
+                "schema": self.settings.exasol_schema,
+                "decision_id": record.decision_id,
+            },
+        )
+        self._conn.execute(
+            """
+            INSERT INTO {schema!i}.DECISIONS (
+                DECISION_ID,
+                OCCURRED_AT,
+                SKU,
+                PRICE_INR,
+                RISK_LEVEL,
+                REGRET_SCORE_INR,
+                CONFIDENCE,
+                INPUT_JSON,
+                RECORD_JSON
+            )
+            VALUES (
+                {decision_id!s},
+                TO_TIMESTAMP({occurred_at!s}, 'YYYY-MM-DD HH24:MI:SS'),
+                {sku!s},
+                {price!f},
+                {risk_level!s},
+                {regret_score!f},
+                {confidence!f},
+                {input_json!s},
+                {record_json!s}
+            )
+            """,
+            {
+                "schema": self.settings.exasol_schema,
+                "decision_id": record.decision_id,
+                "occurred_at": _timestamp_for_exasol(record.timestamp),
+                "sku": record.sku,
+                "price": record.price,
+                "risk_level": record.risk_level,
+                "regret_score": record.regret_score,
+                "confidence": record.confidence,
+                "input_json": json.dumps(input_payload),
+                "record_json": json.dumps(payload),
+            },
         )
 
     def list_records(
@@ -116,56 +124,76 @@ class PostgresDecisionRepository:
         limit: int = 100,
         risk_level: str | None = None,
     ) -> list[DecisionRecord]:
-        where = "where risk_level = %s" if risk_level else ""
-        params: tuple[Any, ...] = (
-            (risk_level.upper(), limit)
-            if risk_level
-            else (limit,)
-        )
-        rows = self._conn.execute(
-            f"""
-            select record_json
-            from guardian_decisions
-            {where}
-            order by occurred_at desc
-            limit %s
-            """,
-            params,
-        ).fetchall()
-        return [_record_from_json(row["record_json"]) for row in rows]
+        if risk_level:
+            stmt = self._conn.execute(
+                """
+                SELECT RECORD_JSON
+                FROM {schema!i}.DECISIONS
+                WHERE RISK_LEVEL={risk_level!s}
+                ORDER BY OCCURRED_AT DESC
+                LIMIT {limit!d}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "risk_level": risk_level.upper(),
+                    "limit": limit,
+                },
+            )
+        else:
+            stmt = self._conn.execute(
+                """
+                SELECT RECORD_JSON
+                FROM {schema!i}.DECISIONS
+                ORDER BY OCCURRED_AT DESC
+                LIMIT {limit!d}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "limit": limit,
+                },
+            )
+        return [_record_from_json(row["RECORD_JSON"]) for row in stmt.fetchall()]
 
     def get(self, decision_id: str) -> DecisionRecord | None:
-        row = self._conn.execute(
+        stmt = self._conn.execute(
             """
-            select record_json
-            from guardian_decisions
-            where decision_id = %s
+            SELECT RECORD_JSON
+            FROM {schema!i}.DECISIONS
+            WHERE DECISION_ID={decision_id!s}
             """,
-            (decision_id,),
-        ).fetchone()
-        return _record_from_json(row["record_json"]) if row else None
+            {
+                "schema": self.settings.exasol_schema,
+                "decision_id": decision_id,
+            },
+        )
+        row = stmt.fetchone()
+        return _record_from_json(row["RECORD_JSON"]) if row else None
 
     def count(self) -> int:
-        row = self._conn.execute("select count(*) as count from guardian_decisions").fetchone()
-        return int(row["count"])
+        stmt = self._conn.execute(
+            """
+            SELECT COUNT(*) AS RECORD_COUNT
+            FROM {schema!i}.DECISIONS
+            """,
+            {"schema": self.settings.exasol_schema},
+        )
+        row = stmt.fetchone()
+        return int(row["RECORD_COUNT"])
 
 
-class SupabaseVectorStore:
-    backend_name = "supabase_pgvector"
+class ExasolVectorStore:
+    backend_name = "exasol_python_vectors"
 
     def __init__(
         self,
-        database_url: str,
+        settings: Settings,
         embedding_provider: EmbeddingProvider,
-        auto_migrate: bool = True,
     ):
-        if psycopg is None or dict_row is None:
-            raise PersistenceUnavailable("psycopg is not installed.")
-        self.database_url = database_url
+        self.settings = settings
         self.embedding_provider = embedding_provider
-        if auto_migrate:
-            ensure_schema(database_url)
-        self._conn = _connect(self.database_url)
+        if settings.auto_migrate:
+            ensure_schema(settings)
+        self._conn = _connect(settings)
 
     def ingest(self, chunks: list[KnowledgeChunk]) -> None:
         if not chunks:
@@ -174,52 +202,77 @@ class SupabaseVectorStore:
         for chunk, embedding in zip(chunks, embeddings, strict=True):
             self._conn.execute(
                 """
-                insert into guardian_knowledge_chunks (
-                    source,
-                    title,
-                    content,
-                    embedding,
-                    metadata
-                )
-                values (%s, %s, %s, %s::vector, %s::jsonb)
-                on conflict (source) do update set
-                    title = excluded.title,
-                    content = excluded.content,
-                    embedding = excluded.embedding,
-                    metadata = excluded.metadata,
-                    updated_at = now()
+                DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
+                WHERE CHUNK_ID={chunk_id!s}
                 """,
-                (
-                    chunk.source,
-                    chunk.title,
-                    chunk.content,
-                    to_pgvector(embedding),
-                    json.dumps({"embedding_provider": self.embedding_provider.provider_name}),
-                ),
+                {
+                    "schema": self.settings.exasol_schema,
+                    "chunk_id": chunk.source,
+                },
+            )
+            self._conn.execute(
+                """
+                INSERT INTO {schema!i}.KNOWLEDGE_CHUNKS (
+                    CHUNK_ID,
+                    SOURCE,
+                    TITLE,
+                    CONTENT,
+                    EMBEDDING_MODEL,
+                    EMBEDDING_JSON
+                )
+                VALUES (
+                    {chunk_id!s},
+                    {source!s},
+                    {title!s},
+                    {content!s},
+                    {embedding_model!s},
+                    {embedding_json!s}
+                )
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "chunk_id": chunk.source,
+                    "source": chunk.source,
+                    "title": chunk.title,
+                    "content": chunk.content,
+                    "embedding_model": self.embedding_provider.provider_name,
+                    "embedding_json": json.dumps(embedding),
+                },
             )
 
     def retrieve(
         self,
         query: str,
         top_k: int = 4,
-        min_score: float = 0.2,
+        min_score: float = 0.08,
     ) -> list[EvidenceItem]:
-        embedding = self.embedding_provider.embed_query(query)
+        query_embedding = self.embedding_provider.embed_query(query)
         rows = self._conn.execute(
             """
-            select source, title, content, relevance_score
-            from match_guardian_knowledge_chunks(%s::vector, %s, %s)
+            SELECT SOURCE, TITLE, CONTENT, EMBEDDING_JSON
+            FROM {schema!i}.KNOWLEDGE_CHUNKS
+            WHERE EMBEDDING_MODEL={embedding_model!s}
             """,
-            (to_pgvector(embedding), min_score, top_k),
+            {
+                "schema": self.settings.exasol_schema,
+                "embedding_model": self.embedding_provider.provider_name,
+            },
         ).fetchall()
+        scored: list[tuple[float, Any]] = []
+        for row in rows:
+            score = _cosine_similarity(query_embedding, json.loads(row["EMBEDDING_JSON"]))
+            if score >= min_score:
+                scored.append((score, row))
+
+        scored.sort(key=lambda item: item[0], reverse=True)
         return [
             EvidenceItem(
-                source=row["source"],
-                title=row["title"],
-                content=row["content"],
-                relevance_score=round(float(row["relevance_score"]), 4),
+                source=row["SOURCE"],
+                title=row["TITLE"],
+                content=row["CONTENT"],
+                relevance_score=round(score, 4),
             )
-            for row in rows
+            for score, row in scored[:top_k]
         ]
 
 
@@ -266,40 +319,55 @@ class InMemoryVectorStore:
         return evidence
 
 
-def build_decision_repository(settings: Settings) -> InMemoryDecisionRepository | PostgresDecisionRepository:
-    if settings.storage_backend == "postgres" and not settings.database_url:
-        raise PersistenceUnavailable("GUARDIAN_DATABASE_URL is required for postgres storage.")
-    if settings.storage_backend == "memory" or not settings.database_url:
+def build_decision_repository(settings: Settings) -> InMemoryDecisionRepository | ExasolDecisionRepository:
+    if settings.storage_backend == "exasol" and not _has_exasol_settings(settings):
+        raise PersistenceUnavailable("EXASOL_DSN, EXASOL_USER, and EXASOL_PASSWORD are required.")
+    if settings.storage_backend == "memory" or not _has_exasol_settings(settings):
         return InMemoryDecisionRepository()
     try:
-        return PostgresDecisionRepository(
-            settings.database_url,
-            auto_migrate=settings.auto_migrate,
-        )
+        return ExasolDecisionRepository(settings)
     except Exception:
-        if settings.storage_backend == "postgres":
+        if settings.storage_backend == "exasol":
             raise
         return InMemoryDecisionRepository()
 
 
-def ensure_schema(database_url: str) -> None:
-    sql = SCHEMA_FILE.read_text(encoding="utf-8")
-    with _connect(database_url) as conn:
-        conn.execute(sql)
+def ensure_schema(settings: Settings) -> None:
+    schema = _safe_ident(settings.exasol_schema)
+    sql = SCHEMA_FILE.read_text(encoding="utf-8").replace("GUARDIAN_AI", schema)
+    conn = _connect(settings, use_schema=False)
+    try:
+        for statement in _split_sql(sql):
+            conn.execute(statement)
+    finally:
+        conn.close()
 
 
-def _connect(database_url: str):
-    if psycopg is None or dict_row is None:
-        raise PersistenceUnavailable("psycopg is not installed.")
-    return psycopg.connect(
-        database_url,
-        autocommit=True,
-        row_factory=dict_row,
-        connect_timeout=10,
-    )
+def _connect(settings: Settings, use_schema: bool = True):
+    if pyexasol is None:
+        raise PersistenceUnavailable("pyexasol is not installed.")
+    if not _has_exasol_settings(settings):
+        raise PersistenceUnavailable("EXASOL_DSN, EXASOL_USER, and EXASOL_PASSWORD are required.")
+    kwargs: dict[str, Any] = {
+        "dsn": settings.exasol_dsn,
+        "user": settings.exasol_user,
+        "password": settings.exasol_password,
+        "encryption": settings.exasol_encryption,
+        "compression": settings.exasol_compression,
+        "fetch_dict": True,
+    }
+    if use_schema:
+        kwargs["schema"] = settings.exasol_schema
+    return pyexasol.connect(**kwargs)
+
+
+def _has_exasol_settings(settings: Settings) -> bool:
+    return bool(settings.exasol_dsn and settings.exasol_user and settings.exasol_password)
 
 
 def _record_from_json(value: Any) -> DecisionRecord:
+    if isinstance(value, bytes):
+        value = value.decode("utf-8")
     if isinstance(value, str):
         value = json.loads(value)
     return DecisionRecord.model_validate(value)
@@ -309,6 +377,24 @@ def _model_dump(value: Any) -> dict[str, Any]:
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
     return value.dict()
+
+
+def _timestamp_for_exasol(value: str) -> str:
+    return value.replace("+05:30", "").replace("+00:00", "").replace("T", " ").split(".")[0]
+
+
+def _split_sql(sql: str) -> list[str]:
+    return [
+        statement.strip()
+        for statement in sql.split(";")
+        if statement.strip()
+    ]
+
+
+def _safe_ident(value: str) -> str:
+    if not re.fullmatch(r"[A-Z][A-Z0-9_]*", value):
+        raise ValueError(f"Unsafe Exasol identifier: {value}")
+    return value
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:

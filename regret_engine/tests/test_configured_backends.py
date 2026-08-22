@@ -9,12 +9,17 @@ from regret_engine.src.rag_explainer import RagExplainer
 
 def _settings(**overrides: object) -> Settings:
     base = {
-        "database_url": None,
         "auto_migrate": False,
         "storage_backend": "memory",
         "vector_backend": "memory",
         "embedding_provider": "hash",
         "embedding_dim": 768,
+        "exasol_dsn": None,
+        "exasol_user": None,
+        "exasol_password": None,
+        "exasol_schema": "GUARDIAN_AI",
+        "exasol_encryption": True,
+        "exasol_compression": True,
         "llm_chain": ("deterministic",),
         "groq_api_key": None,
         "groq_model": "llama-3.1-8b-instant",
@@ -31,6 +36,6 @@ def test_explicit_gemini_embeddings_require_key() -> None:
         get_embedding_provider(_settings(embedding_provider="gemini"))
 
 
-def test_explicit_supabase_vector_backend_requires_database_url() -> None:
-    with pytest.raises(ValueError, match="GUARDIAN_DATABASE_URL"):
-        RagExplainer(settings=_settings(vector_backend="supabase"))
+def test_explicit_exasol_vector_backend_requires_credentials() -> None:
+    with pytest.raises(ValueError, match="EXASOL_DSN"):
+        RagExplainer(settings=_settings(vector_backend="exasol"))

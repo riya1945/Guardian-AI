@@ -108,7 +108,3 @@ def get_embedding_provider(settings: Settings) -> EmbeddingProvider:
             dimension=settings.embedding_dim,
         )
     return HashEmbeddingProvider(dimension=settings.embedding_dim)
-
-
-def to_pgvector(values: list[float]) -> str:
-    return "[" + ",".join(f"{value:.8f}" for value in values) + "]"
