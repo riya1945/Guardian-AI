@@ -23,6 +23,10 @@ def test_health_reports_model_and_rag() -> None:
     body = response.json()
     assert body["model_loaded"] is True
     assert body["rag_chunks"] > 0
+    assert body["storage_backend"] in {"memory", "postgres"}
+    assert body["vector_backend"] in {"memory_vectors", "supabase_pgvector"}
+    assert body["embedding_provider"] in {"hash", "gemini"}
+    assert body["llm_chain"]
 
 
 def test_legacy_regret_endpoint_still_returns_original_shape() -> None:

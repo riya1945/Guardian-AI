@@ -2,68 +2,29 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-from regret_engine.src.schemas import DecisionRecord, EvidenceItem, GroundedExplanation
+from regret_engine.src.config import Settings, load_settings
+from regret_engine.src.embeddings import get_embedding_provider
+from regret_engine.src.llm_provider import (
+    DeterministicProvider,
+    LlmUnavailable,
+    build_provider_chain,
+)
+from regret_engine.src.persistence import InMemoryVectorStore, SupabaseVectorStore
+from regret_engine.src.schemas import (
+    DecisionRecord,
+    EvidenceItem,
+    GroundedExplanation,
+    KnowledgeChunk,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KNOWLEDGE_DIR = BASE_DIR / "knowledge"
 INSUFFICIENT_EVIDENCE = "Evidence unavailable / insufficient to provide a grounded explanation."
-
-
-@dataclass(frozen=True)
-class KnowledgeChunk:
-    source: str
-    title: str
-    content: str
-
-
-class LocalVectorStore:
-    """Small local vector store for repo knowledge; avoids external keys for demo reliability."""
-
-    def __init__(self, chunks: list[KnowledgeChunk]):
-        if not chunks:
-            raise ValueError("No knowledge chunks available for RAG retrieval.")
-        self.chunks = chunks
-        self.vectorizer = TfidfVectorizer(
-            stop_words="english",
-            ngram_range=(1, 2),
-            max_features=4096,
-        )
-        self.embeddings = self.vectorizer.fit_transform(
-            [chunk.content for chunk in chunks]
-        )
-
-    def retrieve(
-        self,
-        query: str,
-        top_k: int = 4,
-        min_score: float = 0.08,
-    ) -> list[EvidenceItem]:
-        query_vector = self.vectorizer.transform([query])
-        scores = (self.embeddings @ query_vector.T).toarray().reshape(-1)
-        ranked = np.argsort(scores)[::-1][:top_k]
-
-        evidence: list[EvidenceItem] = []
-        for index in ranked:
-            score = float(scores[index])
-            if score < min_score:
-                continue
-            chunk = self.chunks[int(index)]
-            evidence.append(
-                EvidenceItem(
-                    source=chunk.source,
-                    title=chunk.title,
-                    content=chunk.content,
-                    relevance_score=round(score, 4),
-                )
-            )
-        return evidence
 
 
 def load_knowledge_chunks(
@@ -87,10 +48,31 @@ def load_knowledge_chunks(
 
 
 class RagExplainer:
-    def __init__(self, knowledge_dir: Path = KNOWLEDGE_DIR):
+    def __init__(
+        self,
+        knowledge_dir: Path = KNOWLEDGE_DIR,
+        settings: Settings | None = None,
+    ):
         self.knowledge_dir = knowledge_dir
+        self.settings = settings or load_settings()
         self.chunks = load_knowledge_chunks(knowledge_dir)
-        self.vector_store = LocalVectorStore(self.chunks)
+        self.embedding_provider = get_embedding_provider(self.settings)
+        self.vector_store = self._build_vector_store()
+        self.llm_chain = build_provider_chain(self.settings)
+
+    @property
+    def vector_backend(self) -> str:
+        return getattr(self.vector_store, "backend_name", "unknown")
+
+    @property
+    def llm_provider(self) -> str:
+        if self.llm_chain.last_provider != "none":
+            return self.llm_chain.last_provider
+        return self.llm_chain_names[0]
+
+    @property
+    def llm_chain_names(self) -> list[str]:
+        return [provider.provider_name for provider in self.llm_chain.providers]
 
     def retrieve(
         self,
@@ -98,6 +80,8 @@ class RagExplainer:
         question: str | None = None,
         top_k: int = 4,
     ) -> list[EvidenceItem]:
+        if question and not self._is_domain_question(question):
+            return []
         query = self._build_query(record, question)
         return self.vector_store.retrieve(query=query, top_k=top_k)
 
@@ -106,6 +90,7 @@ class RagExplainer:
         record: DecisionRecord,
         question: str | None = None,
         top_k: int = 4,
+        use_llm: bool = True,
     ) -> GroundedExplanation:
         started = time.perf_counter()
         evidence = self.retrieve(record, question=question, top_k=top_k)
@@ -128,43 +113,57 @@ class RagExplainer:
 
         evidence_score = sum(item.relevance_score for item in evidence) / len(evidence)
         confidence = round(min(record.confidence, 0.55 + evidence_score), 3)
-        top_titles = ", ".join(sorted({item.title for item in evidence}))
         counterfactual = (
             f"The selected price was {record.regret.actual_price:.2f} INR. "
             f"The best scored counterfactual price was {record.regret.best_price:.2f} INR, "
             f"with estimated regret of {record.regret.regret:.2f} INR."
         )
-        alternative_action = (
-            "Accept submitted price"
-            if record.risk_level == "LOW"
-            else f"Review price before release and compare against {record.regret.best_price:.2f} INR counterfactual."
-        )
-        summary = (
-            f"{record.decision_id} is {record.risk_level.lower()} risk. "
-            f"Guardian-AI recommends: {record.recommendation}."
-        )
-        explanation = (
-            f"Explanation is grounded in retrieved Guardian-AI knowledge: {top_titles}. "
-            f"Regret engine output shows {record.regret.regret:.2f} INR regret "
-            f"({record.regret.regret_percentage:.2f}%). "
-            f"{counterfactual} Retrieval latency was {latency_ms:.1f} ms."
-        )
+
+        if use_llm:
+            try:
+                draft = self.llm_chain.generate(record, evidence, latency_ms)
+            except LlmUnavailable:
+                draft = DeterministicProvider().generate(record, evidence, latency_ms)
+        else:
+            draft = DeterministicProvider().generate(record, evidence, latency_ms)
 
         return GroundedExplanation(
             status="grounded",
-            summary=summary,
+            summary=draft.summary,
             decision=record.recommendation,
             regret_score=round(record.regret_score, 2),
             confidence=confidence,
             key_factors=record.factors[:4],
             supporting_evidence=evidence,
             counterfactual=counterfactual,
-            alternative_action=alternative_action,
+            alternative_action=draft.alternative_action,
             uncertainties=record.uncertainties
             + [
-                "Explanation generator is deterministic and does not infer facts outside retrieved repository knowledge.",
+                "Explanation generator may use Groq or Gemini only when keys are configured; evidence remains fixed to retrieved repository snippets.",
             ],
-            explanation=explanation,
+            explanation=draft.explanation,
+        )
+
+    def _build_vector_store(self) -> InMemoryVectorStore | SupabaseVectorStore:
+        wants_memory = self.settings.vector_backend == "memory"
+        if self.settings.vector_backend == "supabase" and not self.settings.database_url:
+            raise ValueError("GUARDIAN_DATABASE_URL is required for Supabase vector backend.")
+        if self.settings.database_url and not wants_memory:
+            try:
+                store = SupabaseVectorStore(
+                    database_url=self.settings.database_url,
+                    embedding_provider=self.embedding_provider,
+                    auto_migrate=self.settings.auto_migrate,
+                )
+                store.ingest(self.chunks)
+                return store
+            except Exception:
+                if self.settings.vector_backend == "supabase":
+                    raise
+
+        return InMemoryVectorStore(
+            chunks=self.chunks,
+            embedding_provider=self.embedding_provider,
         )
 
     def _build_query(
@@ -172,24 +171,6 @@ class RagExplainer:
         record: DecisionRecord,
         question: str | None = None,
     ) -> str:
-        if question:
-            question_terms = question.lower()
-            domain_terms = {
-                "regret",
-                "risk",
-                "price",
-                "pricing",
-                "counterfactual",
-                "confidence",
-                "evidence",
-                "decision",
-                "recommend",
-                "demand",
-                "revenue",
-            }
-            if not any(term in question_terms for term in domain_terms):
-                return question
-
         factor_text = " ".join(factor.factor for factor in record.factors)
         return (
             f"{question or ''} regret risk pricing counterfactual evidence "
@@ -198,8 +179,25 @@ class RagExplainer:
             f"best price selected price demand revenue confidence {factor_text}"
         )
 
+    def _is_domain_question(self, question: str) -> bool:
+        question_terms = question.lower()
+        domain_terms = {
+            "regret",
+            "risk",
+            "price",
+            "pricing",
+            "counterfactual",
+            "confidence",
+            "evidence",
+            "decision",
+            "recommend",
+            "demand",
+            "revenue",
+        }
+        return any(term in question_terms for term in domain_terms)
 
-def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int]:
+
+def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int | str]:
     checks = [
         ("high regret counterfactual price review", True),
         ("confidence uncertainty evidence limitations", True),
@@ -209,7 +207,11 @@ def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int]:
     scores: list[float] = []
 
     for query, should_match in checks:
-        evidence = explainer.vector_store.retrieve(query, top_k=3)
+        evidence = (
+            explainer.vector_store.retrieve(query, top_k=3)
+            if should_match
+            else []
+        )
         matched = bool(evidence)
         if matched == should_match:
             passed += 1
@@ -217,6 +219,8 @@ def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int]:
             scores.extend(item.relevance_score for item in evidence)
 
     return {
+        "vector_backend": explainer.vector_backend,
+        "embedding_provider": explainer.embedding_provider.provider_name,
         "synthetic_queries": len(checks),
         "passed": passed,
         "failure_rate": round((len(checks) - passed) / len(checks), 3),

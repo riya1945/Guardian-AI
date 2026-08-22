@@ -1,6 +1,6 @@
 # Guardian-AI
 
-Guardian-AI is a local pricing decision intelligence demo. It combines the existing regret engine with a RAG explain layer and a browser dashboard.
+Guardian-AI is a pricing decision intelligence demo. It combines the existing regret engine with a RAG explain layer, Supabase persistence, pgvector retrieval, optional free-tier LLM providers, and a browser dashboard.
 
 ## What Exists
 
@@ -57,6 +57,18 @@ Backward-compatible endpoint:
 POST /calculate-regret
 ```
 
+## Persistence
+
+Guardian-AI supports Supabase Postgres as the persistent store. Set `GUARDIAN_DATABASE_URL` or `SUPABASE_DB_URL` and the app will create the required tables/functions on startup when `GUARDIAN_AUTO_MIGRATE=true`.
+
+Persistent objects:
+
+- `guardian_decisions`: scored decision records and explanation payloads
+- `guardian_knowledge_chunks`: chunked policy/incident knowledge with `vector(768)` embeddings
+- `match_guardian_knowledge_chunks`: pgvector similarity search function
+
+When no database URL is configured, the app falls back to memory for local tests.
+
 ## RAG Explain Layer
 
 Knowledge files live under `regret_engine/knowledge/`. They are synthetic project docs for local development and are clearly labeled as demo knowledge.
@@ -64,10 +76,18 @@ Knowledge files live under `regret_engine/knowledge/`. They are synthetic projec
 The RAG pipeline:
 
 ```text
-Markdown docs -> chunking -> TF-IDF embeddings -> local vector store -> top-k retrieval -> grounded explanation
+Markdown docs -> chunking -> 768-dim embeddings -> Supabase pgvector -> top-k retrieval -> grounded explanation
 ```
 
-The generator is deterministic by default. It cites only retrieved repository evidence. If retrieval fails, it returns:
+Default embeddings use a deterministic hash provider so tests never call external APIs. Set `GUARDIAN_EMBEDDING_PROVIDER=gemini` and `GEMINI_API_KEY` to use Gemini embeddings.
+
+The explanation generator uses `LLM_CHAIN`, defaulting to:
+
+```text
+groq,gemini,deterministic
+```
+
+Groq and Gemini are used only when keys are present. Deterministic fallback keeps the demo working offline. The generator cites only retrieved repository evidence. If retrieval fails, it returns:
 
 ```text
 Evidence unavailable / insufficient to provide a grounded explanation.
@@ -130,6 +150,35 @@ GET  /rag/evaluation
 GET  /dashboard
 ```
 
+Environment variables:
+
+```text
+GUARDIAN_DATABASE_URL         Supabase Postgres connection string
+GUARDIAN_AUTO_MIGRATE        true by default; creates schema.sql objects
+GUARDIAN_STORAGE_BACKEND     auto, postgres, or memory
+GUARDIAN_VECTOR_BACKEND      auto, supabase, or memory
+GUARDIAN_EMBEDDING_PROVIDER  hash or gemini
+GUARDIAN_EMBEDDING_DIM       768
+LLM_CHAIN                    groq,gemini,deterministic
+GROQ_API_KEY                 optional
+GROQ_MODEL                   llama-3.1-8b-instant by default
+GEMINI_API_KEY               optional
+GEMINI_CHAT_MODEL            gemini-2.5-flash-lite by default
+GEMINI_EMBEDDING_MODEL       gemini-embedding-001 by default
+```
+
+Apply schema manually if preferred:
+
+```bash
+psql "$GUARDIAN_DATABASE_URL" -f regret_engine/db/schema.sql
+```
+
+Or run the bundled setup script, which applies schema and ingests the knowledge corpus into pgvector:
+
+```bash
+python -m regret_engine.scripts.setup_persistence
+```
+
 Example decision payload:
 
 ```json
@@ -170,7 +219,7 @@ Tests cover:
 ## Limitations
 
 - Training data is synthetic.
-- No persistent database is included.
-- Vector retrieval is local TF-IDF, chosen to keep the repo lightweight and free-tier friendly.
-- Explanation generation is deterministic, not a hosted LLM.
+- Supabase Postgres is used only when `GUARDIAN_DATABASE_URL` or `SUPABASE_DB_URL` is configured.
+- pgvector is used only when database connection succeeds; tests use in-memory vectors.
+- Groq/Gemini are optional and skipped when keys are missing.
 - Confidence is an explainability score derived from model context and evidence coverage, not model calibration.

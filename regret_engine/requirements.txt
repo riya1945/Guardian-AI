@@ -1,9 +1,17 @@
+# data + model
 pandas
 numpy
 scikit-learn
 joblib
 openpyxl
+
+# backend + provider calls
 fastapi
 uvicorn
-pytest
 httpx
+
+# persistent storage
+psycopg[binary]
+
+# tests
+pytest

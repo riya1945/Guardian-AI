@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -7,6 +8,13 @@ from pydantic import BaseModel, Field
 
 RiskLevel = Literal["LOW", "MEDIUM", "HIGH"]
 ExplanationStatus = Literal["grounded", "insufficient_evidence"]
+
+
+@dataclass(frozen=True)
+class KnowledgeChunk:
+    source: str
+    title: str
+    content: str
 
 
 class Decision(BaseModel):

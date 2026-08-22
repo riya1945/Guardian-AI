@@ -1,6 +1,7 @@
 const state = {
   decisions: [],
   analytics: null,
+  health: null,
   selectedId: null,
   risk: "",
 };
@@ -31,15 +32,17 @@ const els = {
 async function loadData() {
   try {
     const query = state.risk ? `?risk_level=${state.risk}` : "";
-    const [analyticsRes, decisionsRes] = await Promise.all([
+    const [healthRes, analyticsRes, decisionsRes] = await Promise.all([
+      fetch("/health"),
       fetch("/analytics"),
       fetch(`/decisions${query}`),
     ]);
 
-    if (!analyticsRes.ok || !decisionsRes.ok) {
+    if (!healthRes.ok || !analyticsRes.ok || !decisionsRes.ok) {
       throw new Error("API request failed");
     }
 
+    state.health = await healthRes.json();
     state.analytics = await analyticsRes.json();
     state.decisions = await decisionsRes.json();
     if (!state.selectedId && state.decisions.length) {
@@ -57,8 +60,11 @@ async function loadData() {
 function setOnline(isOnline) {
   els.connectionStatus.textContent = isOnline ? "Online" : "Offline";
   els.connectionStatus.className = `status-dot ${isOnline ? "online" : "offline"}`;
+  const backend = state.health
+    ? `${state.health.storage_backend} / ${state.health.vector_backend} / ${state.health.llm_provider}`
+    : "Backend connected";
   els.lastUpdated.textContent = isOnline
-    ? `Updated ${new Date().toLocaleTimeString()}`
+    ? `${backend} | ${new Date().toLocaleTimeString()}`
     : "Backend unavailable";
 }
 

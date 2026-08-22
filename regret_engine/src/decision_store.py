@@ -1,39 +1,71 @@
 from __future__ import annotations
 
 from collections import Counter
+from typing import Protocol
 
 from regret_engine.src.rag_explainer import RagExplainer
 from regret_engine.src.regret_service import RegretService, load_demo_decisions
 from regret_engine.src.schemas import AnalyticsSummary, Decision, DecisionRecord
 
 
+class DecisionRepository(Protocol):
+    backend_name: str
+
+    def save(self, record: DecisionRecord) -> None:
+        ...
+
+    def list_records(
+        self,
+        limit: int = 100,
+        risk_level: str | None = None,
+    ) -> list[DecisionRecord]:
+        ...
+
+    def get(self, decision_id: str) -> DecisionRecord | None:
+        ...
+
+    def count(self) -> int:
+        ...
+
+
 class DecisionStore:
-    """In-memory decision feed for local demo and tests."""
+    """Decision feed backed by Postgres when configured, memory otherwise."""
 
     def __init__(
         self,
         regret_service: RegretService,
         explainer: RagExplainer,
+        repository: DecisionRepository,
         demo_limit: int = 30,
     ):
         self.regret_service = regret_service
         self.explainer = explainer
-        self.records: dict[str, DecisionRecord] = {}
-        self._load_demo_records(demo_limit)
+        self.repository = repository
+        if self.repository.count() < demo_limit:
+            self._load_demo_records(demo_limit)
+
+    @property
+    def backend_name(self) -> str:
+        return self.repository.backend_name
+
+    @property
+    def record_count(self) -> int:
+        return self.repository.count()
 
     def _load_demo_records(self, limit: int) -> None:
         for decision in load_demo_decisions(limit=limit):
-            self.upsert(decision, explain=True)
+            self.upsert(decision, explain=True, use_llm=False)
 
     def upsert(
         self,
         decision: Decision,
         explain: bool = True,
+        use_llm: bool = True,
     ) -> DecisionRecord:
         record = self.regret_service.build_record(decision)
         if explain:
-            record.explanation = self.explainer.explain(record)
-        self.records[record.decision_id] = record
+            record.explanation = self.explainer.explain(record, use_llm=use_llm)
+        self.repository.save(record)
         return record
 
     def list_records(
@@ -41,19 +73,10 @@ class DecisionStore:
         limit: int = 100,
         risk_level: str | None = None,
     ) -> list[DecisionRecord]:
-        records = sorted(
-            self.records.values(),
-            key=lambda record: record.timestamp,
-            reverse=True,
-        )
-        if risk_level:
-            records = [
-                record for record in records if record.risk_level == risk_level.upper()
-            ]
-        return records[:limit]
+        return self.repository.list_records(limit=limit, risk_level=risk_level)
 
     def get(self, decision_id: str) -> DecisionRecord | None:
-        return self.records.get(decision_id)
+        return self.repository.get(decision_id)
 
     def ensure_explanation(
         self,
@@ -69,11 +92,11 @@ class DecisionStore:
             question=question,
             top_k=top_k,
         )
-        self.records[decision_id] = record
+        self.repository.save(record)
         return record
 
     def analytics(self) -> AnalyticsSummary:
-        records = list(self.records.values())
+        records = self.repository.list_records(limit=10000)
         if not records:
             return AnalyticsSummary(
                 total_decisions=0,

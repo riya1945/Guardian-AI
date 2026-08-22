@@ -6,7 +6,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from regret_engine.src.config import load_settings
 from regret_engine.src.decision_store import DecisionStore
+from regret_engine.src.persistence import build_decision_repository
 from regret_engine.src.rag_explainer import RagExplainer, evaluate_explainer
 from regret_engine.src.regret_service import RegretService
 from regret_engine.src.schemas import Decision, DecisionRecord, ExplainRequest
@@ -15,9 +17,11 @@ from regret_engine.src.schemas import Decision, DecisionRecord, ExplainRequest
 BASE_DIR = Path(__file__).resolve().parent.parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
 
+settings = load_settings()
 regret_service = RegretService()
-rag_explainer = RagExplainer()
-decision_store = DecisionStore(regret_service, rag_explainer)
+rag_explainer = RagExplainer(settings=settings)
+decision_repository = build_decision_repository(settings)
+decision_store = DecisionStore(regret_service, rag_explainer, decision_repository)
 
 app = FastAPI(
     title="Guardian-AI Regret Engine + RAG Explain Layer",
@@ -42,8 +46,13 @@ def health() -> dict[str, object]:
         "service": "Guardian-AI",
         "model_loaded": True,
         "model_source": regret_service.model_source,
+        "storage_backend": decision_store.backend_name,
+        "vector_backend": rag_explainer.vector_backend,
+        "embedding_provider": rag_explainer.embedding_provider.provider_name,
+        "llm_provider": rag_explainer.llm_provider,
+        "llm_chain": rag_explainer.llm_chain_names,
         "rag_chunks": len(rag_explainer.chunks),
-        "demo_decisions": len(decision_store.records),
+        "decision_records": decision_store.record_count,
     }
 
 
@@ -126,5 +135,5 @@ def analytics() -> dict[str, object]:
 
 
 @app.get("/rag/evaluation")
-def rag_evaluation() -> dict[str, float | int]:
+def rag_evaluation() -> dict[str, float | int | str]:
     return evaluate_explainer(rag_explainer)
