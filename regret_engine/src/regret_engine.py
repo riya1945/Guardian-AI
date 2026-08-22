@@ -637,17 +637,17 @@ def print_summary(results):
 
     print(
         f"Average regret: "
-        f"£{results['regret'].mean():.2f}"
+        f"INR {results['regret'].mean():.2f}"
     )
 
     print(
         f"Median regret: "
-        f"£{results['regret'].median():.2f}"
+        f"INR {results['regret'].median():.2f}"
     )
 
     print(
         f"Total estimated regret: "
-        f"£{results['regret'].sum():,.2f}"
+        f"INR {results['regret'].sum():,.2f}"
     )
 
     print(

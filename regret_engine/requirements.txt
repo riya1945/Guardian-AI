@@ -3,3 +3,7 @@ numpy
 scikit-learn
 joblib
 openpyxl
+fastapi
+uvicorn
+pytest
+httpx

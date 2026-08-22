@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guardian-AI Decision Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/assets/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Guardian-AI</p>
+          <h1>Pricing Regret Console</h1>
+        </div>
+        <div class="status-strip">
+          <span id="connectionStatus" class="status-dot">Connecting</span>
+          <span id="lastUpdated">Waiting for data</span>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="workspace">
+          <section class="metrics-grid" aria-label="Overview metrics">
+            <article class="metric">
+              <span>Total decisions</span>
+              <strong id="metricTotal">0</strong>
+            </article>
+            <article class="metric">
+              <span>Average regret</span>
+              <strong id="metricRegret">0 INR</strong>
+            </article>
+            <article class="metric">
+              <span>Average confidence</span>
+              <strong id="metricConfidence">0%</strong>
+            </article>
+            <article class="metric">
+              <span>High risk</span>
+              <strong id="metricHighRisk">0</strong>
+            </article>
+            <article class="metric">
+              <span>Evidence sources</span>
+              <strong id="metricEvidence">0</strong>
+            </article>
+          </section>
+
+          <section class="chart-grid" aria-label="Decision analytics">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Regret Over Time</h2>
+                <span>INR</span>
+              </div>
+              <canvas id="regretLine" width="640" height="230"></canvas>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Risk Breakdown</h2>
+                <span>Count</span>
+              </div>
+              <canvas id="riskBars" width="420" height="230"></canvas>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Confidence vs Regret</h2>
+                <span>Scatter</span>
+              </div>
+              <canvas id="confidenceScatter" width="420" height="230"></canvas>
+            </div>
+          </section>
+
+          <section class="decision-section">
+            <div class="section-head">
+              <div>
+                <h2>Decision Explorer</h2>
+                <p>Live records from FastAPI, scored by existing regret model and enriched by RAG.</p>
+              </div>
+              <div class="filters" aria-label="Risk filters">
+                <button class="filter active" data-risk="">All</button>
+                <button class="filter" data-risk="LOW">Low</button>
+                <button class="filter" data-risk="MEDIUM">Medium</button>
+                <button class="filter" data-risk="HIGH">High</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Decision</th>
+                    <th>SKU</th>
+                    <th>Price</th>
+                    <th>Best</th>
+                    <th>Regret</th>
+                    <th>Risk</th>
+                    <th>Confidence</th>
+                  </tr>
+                </thead>
+                <tbody id="decisionRows">
+                  <tr>
+                    <td colspan="7" class="empty">Loading decisions</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <aside class="detail-panel" aria-label="Decision explanation">
+          <div class="detail-head">
+            <div>
+              <p class="eyebrow">Selected Decision</p>
+              <h2 id="detailTitle">No decision selected</h2>
+            </div>
+            <span id="detailRisk" class="risk-pill">None</span>
+          </div>
+
+          <div id="detailBody" class="detail-body">
+            <p class="empty">Select a row to inspect decision, evidence, counterfactual, and uncertainty.</p>
+          </div>
+        </aside>
+      </main>
+    </div>
+    <script src="/dashboard/assets/app.js"></script>
+  </body>
+</html>

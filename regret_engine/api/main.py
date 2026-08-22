@@ -1,436 +1,130 @@
+from __future__ import annotations
+
 from pathlib import Path
 
-import joblib
-import numpy as np
-import pandas as pd
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
-
-
-# Paths
+from regret_engine.src.decision_store import DecisionStore
+from regret_engine.src.rag_explainer import RagExplainer, evaluate_explainer
+from regret_engine.src.regret_service import RegretService
+from regret_engine.src.schemas import Decision, DecisionRecord, ExplainRequest
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+DASHBOARD_DIR = BASE_DIR / "dashboard"
 
-MODEL_FILE = (
-    BASE_DIR
-    / "models"
-    / "reward_model.joblib"
-)
-
-
-# Load reward model
-
-
-print("Loading Guardian AI reward model...")
-
-pipeline = joblib.load(MODEL_FILE)
-
-PREPROCESSOR = pipeline["preprocessor"]
-MODEL = pipeline["model"]
-
-print("Reward model loaded successfully.")
-
-
-
-# FastAPI
-
+regret_service = RegretService()
+rag_explainer = RagExplainer()
+decision_store = DecisionStore(regret_service, rag_explainer)
 
 app = FastAPI(
-    title="Guardian AI - Regret Engine",
+    title="Guardian-AI Regret Engine + RAG Explain Layer",
     description=(
-        "Off-policy counterfactual regret scoring "
-        "for pricing decisions."
+        "Off-policy pricing regret scoring, grounded explanations, "
+        "and local decision-intelligence dashboard."
     ),
-    version="1.0.0",
+    version="2.0.0",
 )
 
-
-# Decision Input
-
-
-class Decision(BaseModel):
-
-    decision_id: str
-    timestamp: str
-
-    sku: str
-    price: float
-
-    # Historical/context information
-    previous_units: float
-    previous_price: float
-    rolling_7d_units: float
-    rolling_30d_units: float
-
-    demand_trend: float
-    demand_momentum: float
-
-    day_of_week: int
-    month: int
-    year: int
-    is_weekend: int
-
-    historical_avg_price: float
-
-    # Optional contextual fields.
-    # They are accepted so the API matches the
-    # agreed mock decision structure.
-    demand_score: float | None = None
-    competitor_price: float | None = None
-    inventory: float | None = None
-    season: str | None = None
-
-
-
-# Candidate prices
-
-
-N_PRICE_ALTERNATIVES = 5
-
-MIN_PRICE_MULTIPLIER = 0.90
-MAX_PRICE_MULTIPLIER = 1.10
-
-
-def generate_candidate_prices(
-    actual_price: float,
-):
-
-    multipliers = np.linspace(
-        MIN_PRICE_MULTIPLIER,
-        MAX_PRICE_MULTIPLIER,
-        N_PRICE_ALTERNATIVES,
-    )
-
-    candidates = (
-        actual_price * multipliers
-    )
-
-    # Always include actual price.
-    candidates = np.append(
-        candidates,
-        actual_price,
-    )
-
-    candidates = np.round(
-        candidates,
-        2,
-    )
-
-    candidates = np.unique(
-        candidates
-    )
-
-    candidates = candidates[
-        candidates > 0
-    ]
-
-    return candidates
-
-
-
-# Build model features
-
-
-def build_features(
-    decision: Decision,
-    candidate_price: float,
-):
-
-    price_change = (
-        candidate_price
-        - decision.previous_price
-    )
-
-    if decision.previous_price != 0:
-
-        price_ratio = (
-            candidate_price
-            / decision.previous_price
-        )
-
-    else:
-
-        price_ratio = 1.0
-
-    if decision.historical_avg_price != 0:
-
-        price_vs_historical_avg = (
-            candidate_price
-            / decision.historical_avg_price
-        )
-
-    else:
-
-        price_vs_historical_avg = 1.0
-
-    return pd.DataFrame(
-        [
-            {
-                "StockCode": decision.sku,
-
-                "price": candidate_price,
-
-                "log_price": np.log1p(
-                    candidate_price
-                ),
-
-                "price_change":
-                    price_change,
-
-                "price_ratio":
-                    price_ratio,
-
-                "price_vs_historical_avg":
-                    price_vs_historical_avg,
-
-                "previous_units":
-                    decision.previous_units,
-
-                "previous_price":
-                    decision.previous_price,
-
-                "rolling_7d_units":
-                    decision.rolling_7d_units,
-
-                "rolling_30d_units":
-                    decision.rolling_30d_units,
-
-                "demand_trend":
-                    decision.demand_trend,
-
-                "demand_momentum":
-                    decision.demand_momentum,
-
-                "day_of_week":
-                    decision.day_of_week,
-
-                "month":
-                    decision.month,
-
-                "year":
-                    decision.year,
-
-                "is_weekend":
-                    decision.is_weekend,
-            }
-        ]
-    )
-
-
-
-def predict_demand(
-    decision: Decision,
-    candidate_price: float,
-):
-
-    X = build_features(
-        decision,
-        candidate_price,
-    )
-
-    X_transformed = (
-        PREPROCESSOR.transform(X)
-    )
-
-    predicted_log_demand = (
-        MODEL.predict(
-            X_transformed
-        )[0]
-    )
-
-    predicted_demand = np.expm1(
-        predicted_log_demand
-    )
-
-    return max(
-        0.0,
-        float(predicted_demand),
-    )
-
-def calculate_regret(
-    decision: Decision,
-):
-
-    actual_price = float(
-        decision.price
-    )
-
-    candidate_prices = (
-        generate_candidate_prices(
-            actual_price
-        )
-    )
-
-    alternatives = []
-
-    for price in candidate_prices:
-
-        demand = predict_demand(
-            decision,
-            price,
-        )
-
-        revenue = (
-            price * demand
-        )
-
-        alternatives.append(
-            {
-                "price": float(price),
-                "predicted_demand": demand,
-                "predicted_revenue": revenue,
-            }
-        )
-
-    alternatives_df = pd.DataFrame(
-        alternatives
-    )
-
-    # Best counterfactual decision
-    best_idx = (
-        alternatives_df[
-            "predicted_revenue"
-        ].idxmax()
-    )
-
-    best = (
-        alternatives_df.loc[
-            best_idx
-        ]
-    )
-
-    # Prediction for actual decision
-    actual_idx = (
-        (
-            alternatives_df["price"]
-            - actual_price
-        )
-        .abs()
-        .idxmin()
-    )
-
-    actual = (
-        alternatives_df.loc[
-            actual_idx
-        ]
-    )
-
-    actual_revenue = float(
-        actual["predicted_revenue"]
-    )
-
-    best_revenue = float(
-        best["predicted_revenue"]
-    )
-
-    regret = max(
-        0.0,
-        best_revenue
-        - actual_revenue,
-    )
-
-    if actual_revenue > 0:
-
-        regret_percentage = (
-            regret
-            / actual_revenue
-            * 100
-        )
-
-    else:
-
-        regret_percentage = 0.0
-
-    if regret_percentage < 5:
-
-        decision_quality = "GOOD"
-
-    elif regret_percentage < 15:
-
-        decision_quality = "QUESTIONABLE"
-
-    else:
-
-        decision_quality = "HIGH_REGRET"
-
-    return {
-
-        "decision_id":
-            decision.decision_id,
-
-        "sku":
-            decision.sku,
-
-        "actual_price":
-            actual_price,
-
-        "best_price":
-            float(best["price"]),
-
-        "actual_predicted_demand":
-            float(
-                actual[
-                    "predicted_demand"
-                ]
-            ),
-
-        "best_predicted_demand":
-            float(
-                best[
-                    "predicted_demand"
-                ]
-            ),
-
-        "actual_predicted_revenue":
-            actual_revenue,
-
-        "best_predicted_revenue":
-            best_revenue,
-
-        "regret":
-            float(regret),
-
-        "regret_percentage":
-            float(regret_percentage),
-
-        "decision_quality":
-            decision_quality,
-
-        "currency":
-            "INR",
-    }
-
-
-
-@app.post("/calculate-regret")
-def calculate_regret_endpoint(
-    decision: Decision,
-):
-
-    try:
-
-        result = calculate_regret(
-            decision
-        )
-
-        return result
-
-    except Exception as e:
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(e),
-        )
+app.mount(
+    "/dashboard/assets",
+    StaticFiles(directory=DASHBOARD_DIR),
+    name="dashboard-assets",
+)
 
 
 @app.get("/health")
-def health():
-
+def health() -> dict[str, object]:
     return {
         "status": "healthy",
-        "service": "Guardian AI Regret Engine",
+        "service": "Guardian-AI",
         "model_loaded": True,
+        "model_source": regret_service.model_source,
+        "rag_chunks": len(rag_explainer.chunks),
+        "demo_decisions": len(decision_store.records),
     }
+
+
+@app.get("/dashboard")
+def dashboard() -> FileResponse:
+    return FileResponse(DASHBOARD_DIR / "index.html")
+
+
+@app.post("/calculate-regret")
+def calculate_regret_endpoint(decision: Decision) -> dict[str, object]:
+    try:
+        return regret_service.legacy_result(decision)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/decision", response_model=DecisionRecord)
+def create_decision(decision: Decision) -> DecisionRecord:
+    try:
+        return decision_store.upsert(decision, explain=True)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/decisions", response_model=list[DecisionRecord])
+def list_decisions(
+    limit: int = Query(default=100, ge=1, le=500),
+    risk_level: str | None = Query(default=None),
+) -> list[DecisionRecord]:
+    if risk_level and risk_level.upper() not in {"LOW", "MEDIUM", "HIGH"}:
+        raise HTTPException(status_code=400, detail="risk_level must be LOW, MEDIUM, or HIGH")
+    return decision_store.list_records(limit=limit, risk_level=risk_level)
+
+
+@app.get("/decisions/{decision_id}", response_model=DecisionRecord)
+def get_decision(decision_id: str) -> DecisionRecord:
+    record = decision_store.get(decision_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return record
+
+
+@app.post("/explain/{decision_id}", response_model=DecisionRecord)
+def explain_decision(
+    decision_id: str,
+    request: ExplainRequest | None = None,
+) -> DecisionRecord:
+    request = request or ExplainRequest()
+    if request.decision is not None:
+        decision_store.upsert(request.decision, explain=False)
+        decision_id = request.decision.decision_id
+
+    record = decision_store.ensure_explanation(
+        decision_id,
+        question=request.question,
+        top_k=request.top_k,
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return record
+
+
+@app.get("/decisions/{decision_id}/evidence")
+def get_decision_evidence(decision_id: str) -> dict[str, object]:
+    record = decision_store.ensure_explanation(decision_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return {
+        "decision_id": decision_id,
+        "evidence": record.explanation.supporting_evidence if record.explanation else [],
+    }
+
+
+@app.get("/analytics")
+def analytics() -> dict[str, object]:
+    summary = decision_store.analytics()
+    if hasattr(summary, "model_dump"):
+        return summary.model_dump()
+    return summary.dict()
+
+
+@app.get("/rag/evaluation")
+def rag_evaluation() -> dict[str, float | int]:
+    return evaluate_explainer(rag_explainer)
