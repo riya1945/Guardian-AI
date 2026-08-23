@@ -14,7 +14,8 @@ Submission materials:
 - Screenshots: `submission/screenshots/`
 - Sample integration payload: `submission/samples/guardrail_decision_payload.json`
 - Configuration notes: `submission/configuration-notes.md`
-- Demo video: https://drive.google.com/file/d/1x1OJuCxTL3-nEVLcw4hL3Ej_Dc03Q9-y/view?usp=sharing
+- Demo video: https://drive.google.com/file/d/1IY7QXulyR1_aJAL05zw8Mx9_vFqzefjG/view?usp=sharing
+- Pitch Deck: https://docs.google.com/presentation/d/1j7B2Owtt-qyd_38m3GW_jWMKkIVz1kJs/edit?usp=sharing&ouid=101504758519227460717&rtpof=true&sd=true
 
 
 
