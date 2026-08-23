@@ -34,7 +34,11 @@ https://guardian-ai-ragex.onrender.com/integrations/guardrail-decision
 
 ## Demo Video
 
-Video link will be added to the root README when final recording is available.
+Root README includes the hosted demo video link. This folder also includes the generated local demo video:
+
+```text
+demo-video/ragex-demo-3min.mp4
+```
 
 ## Submission Notes
 
