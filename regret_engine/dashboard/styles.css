@@ -39,6 +39,8 @@
   --gap-section: 32px;
   --gutter: 56px;
   --maxw: 1280px;
+  --metric-value-max: 26px;
+  --metric-value-min: 18px;
 }
 
 * {
@@ -320,7 +322,12 @@ h3 {
 }
 
 .metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-height: 118px;
+  min-width: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
@@ -339,11 +346,14 @@ h3 {
   color: var(--cyan);
   display: block;
   font-family: var(--font-mono);
-  font-size: clamp(18px, 1.5vw, 24px);
+  font-size: clamp(var(--metric-value-min), 1.45vw, var(--metric-value-max));
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.1;
   margin-top: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -677,6 +687,12 @@ tbody tr:focus-visible td {
 
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1181px) {
+  .metrics-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

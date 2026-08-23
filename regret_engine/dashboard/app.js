@@ -104,11 +104,43 @@ function render() {
 function renderMetrics() {
   const analytics = state.analytics;
   if (!analytics) return;
-  els.metricTotal.textContent = analytics.total_decisions;
-  els.metricRegret.textContent = currency.format(analytics.average_regret);
-  els.metricConfidence.textContent = pct.format(analytics.average_confidence);
-  els.metricHighRisk.textContent = analytics.high_risk_decisions;
-  els.metricEvidence.textContent = analytics.retrieved_evidence_sources;
+  setMetricValue(els.metricTotal, analytics.total_decisions);
+  setMetricValue(els.metricRegret, currency.format(analytics.average_regret));
+  setMetricValue(els.metricConfidence, pct.format(analytics.average_confidence));
+  setMetricValue(els.metricHighRisk, analytics.high_risk_decisions);
+  setMetricValue(els.metricEvidence, analytics.retrieved_evidence_sources);
+  fitMetricValues();
+}
+
+function setMetricValue(element, value) {
+  element.textContent = value;
+  element.title = String(value);
+  element.style.removeProperty("font-size");
+}
+
+function fitMetricValues() {
+  requestAnimationFrame(() => {
+    [
+      els.metricTotal,
+      els.metricRegret,
+      els.metricConfidence,
+      els.metricHighRisk,
+      els.metricEvidence,
+    ].forEach(fitMetricValue);
+  });
+}
+
+function fitMetricValue(element) {
+  const minSize = parseFloat(cssVar("--metric-value-min")) || 18;
+  let size = parseFloat(getComputedStyle(element).fontSize);
+
+  element.style.removeProperty("font-size");
+  size = parseFloat(getComputedStyle(element).fontSize);
+
+  while (size > minSize && element.scrollWidth > element.clientWidth) {
+    size -= 1;
+    element.style.fontSize = `${size}px`;
+  }
 }
 
 function renderRows() {
@@ -366,6 +398,11 @@ document.querySelectorAll(".filter").forEach((button) => {
     state.selectedId = null;
     loadData();
   });
+});
+
+window.addEventListener("resize", () => {
+  fitMetricValues();
+  renderCharts();
 });
 
 loadData();
