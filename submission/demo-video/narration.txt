@@ -1,0 +1,19 @@
+Hi, this is RaGeX, an AI pricing guardrail system for automated commerce pricing.
+
+Modern pricing bots can update thousands of prices before any human reviewer sees the damage. One stale competitor signal, one bad model release, or one broken data feed can push prices below floor, above ceiling, or into sudden drift. RaGeX catches those decisions while they are still reviewable.
+
+Here is the full flow. A simulator or live pricing bot sends a pricing decision. Exasol stores historical pricing data, live decisions, guardrail flags, regret results, and the retrieval corpus. The guardrail checks floor and ceiling rules, z-score spikes, and drift. The regret engine estimates what better pricing could have earned. The RAG layer retrieves policy and incident evidence, then generates a grounded explanation. The dashboard brings it together for an analyst.
+
+On the main dashboard, the reviewer gets the current operating picture first: total decisions, average regret in INR, average confidence, high-risk count, and evidence coverage. The charts show regret over time, risk distribution, and confidence versus regret. This is built as an operational console, not a marketing page, so the most important data is visible immediately.
+
+The decision explorer shows each SKU, region, selected price, best counterfactual price, regret estimate, risk level, and confidence. Filters let the reviewer focus on high, medium, or low risk. The dashboard polls the backend feed every two seconds, and it also keeps a cached snapshot so the UI stays useful during short backend wakeups.
+
+Selecting a decision opens the detail view. The reviewer can see what changed, why the decision was flagged, which factors mattered, and what counterfactual price the regret engine preferred. This turns the question from "is this price weird" into "how expensive is this mistake, and what policy explains it."
+
+The explanation layer is intentionally grounded. It retrieves policy, guardrail, incident, escalation, and example decision snippets from the corpus. If retrieved evidence is relevant, the explanation cites it. If the question is outside the corpus, the service refuses instead of inventing an answer.
+
+For persistence, RaGeX uses Exasol. In this deployed demo, Exasol stores the decisions and vector chunks, so the service survives restarts and keeps one shared state for the team. The same code can fall back to memory for local development, but the public deployment is backed by Exasol.
+
+The integration endpoint is simple. Divija's simulator can POST one guardrail decision to slash integrations slash guardrail decision. My side converts that handoff into the richer record, scores regret, retrieves evidence, stores the result, and updates the dashboard.
+
+The result is one review workflow across all three parts of the team project: data layer and guardrail, regret engine, and RAG dashboard. RaGeX makes automated pricing safer by combining real-time checks, counterfactual cost, and evidence-backed explanation in one place.

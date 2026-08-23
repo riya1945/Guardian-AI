@@ -1,0 +1,44 @@
+1
+00:00:00,000 --> 00:00:06,000
+RaGeX: AI pricing guardrails for automated commerce pricing.
+
+2
+00:00:06,000 --> 00:00:24,000
+Pricing bots can move faster than human review, creating floor, ceiling, and drift risk.
+
+3
+00:00:24,000 --> 00:00:49,000
+A decision flows through Exasol, guardrails, regret scoring, RAG retrieval, and dashboard review.
+
+4
+00:00:49,000 --> 00:01:10,000
+The dashboard opens with total decisions, average regret, confidence, high-risk count, and evidence coverage.
+
+5
+00:01:10,000 --> 00:01:30,000
+The decision explorer shows SKU, selected price, best counterfactual price, regret, risk, and confidence.
+
+6
+00:01:30,000 --> 00:01:48,000
+Decision details explain what changed, why it was flagged, factors, counterfactuals, evidence, and uncertainty.
+
+7
+00:01:48,000 --> 00:02:04,000
+RAG explanations cite policy, incident, SOP, escalation, and example decision evidence, or refuse.
+
+8
+00:02:04,000 --> 00:02:22,000
+Exasol stores decisions and vector chunks, keeping public demo state persistent across restarts.
+
+9
+00:02:22,000 --> 00:02:36,000
+The integration endpoint accepts guardrail payloads and enriches them for regret, RAG, storage, and dashboard display.
+
+10
+00:02:36,000 --> 00:02:50,000
+Three project streams become one review workflow: guardrail signals, regret cost, and grounded evidence.
+
+11
+00:02:50,000 --> 00:02:59,300
+RaGeX makes automated pricing safer while decisions are still fixable.
+
