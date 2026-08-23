@@ -55,6 +55,7 @@ def test_decision_feed_analytics_and_dashboard_routes() -> None:
     decisions_response = client.get("/decisions?limit=5")
     analytics_response = client.get("/analytics")
     dashboard_response = client.get("/dashboard")
+    root_response = client.get("/")
 
     assert decisions_response.status_code == 200
     assert len(decisions_response.json()) <= 5
@@ -62,6 +63,8 @@ def test_decision_feed_analytics_and_dashboard_routes() -> None:
     assert analytics_response.json()["total_decisions"] > 0
     assert dashboard_response.status_code == 200
     assert "Pricing Regret Console" in dashboard_response.text
+    assert root_response.status_code == 200
+    assert "Pricing Regret Console" in root_response.text
 
 
 def test_explain_refuses_unrelated_question() -> None:
@@ -75,3 +78,26 @@ def test_explain_refuses_unrelated_question() -> None:
     explanation = response.json()["explanation"]
     assert explanation["status"] == "insufficient_evidence"
     assert explanation["summary"] == "This information is not found in the uploaded documents"
+
+
+def test_dashboard_compatibility_routes_do_not_404() -> None:
+    routes = [
+        "/dashboard/metrics",
+        "/dashboard/interventions?limit=60",
+        "/dashboard/leaderboard",
+        "/dashboard/model",
+        "/dashboard/ab",
+        "/dashboard/settings",
+        "/favicon.ico",
+    ]
+
+    for route in routes:
+        response = client.get(route)
+        assert response.status_code in {200, 204}
+
+    assert client.get("/dashboard/metrics").json()["total_decisions"] > 0
+    assert client.get("/dashboard/interventions?limit=60").json()["items"]
+    assert client.get("/dashboard/leaderboard").json()["items"]
+    assert client.get("/dashboard/model").json()["model_loaded"] is True
+    assert "cohorts" in client.get("/dashboard/ab").json()
+    assert "exasol_password" not in client.get("/dashboard/settings").json()
