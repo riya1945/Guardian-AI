@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import ssl
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -67,118 +68,123 @@ class ExasolDecisionRepository:
         if settings.auto_migrate:
             ensure_schema(settings)
         self._conn = _connect(settings)
+        self._lock = threading.RLock()
 
     def save(self, record: DecisionRecord) -> None:
         payload = _model_dump(record)
         input_payload = _model_dump(record.input)
-        self._conn.execute(
-            """
-            DELETE FROM {schema!i}.DECISIONS
-            WHERE DECISION_ID={decision_id!s}
-            """,
-            {
-                "schema": self.settings.exasol_schema,
-                "decision_id": record.decision_id,
-            },
-        )
-        self._conn.execute(
-            """
-            INSERT INTO {schema!i}.DECISIONS (
-                DECISION_ID,
-                OCCURRED_AT,
-                SKU,
-                PRICE_INR,
-                RISK_LEVEL,
-                REGRET_SCORE_INR,
-                CONFIDENCE,
-                INPUT_JSON,
-                RECORD_JSON
+        with self._lock:
+            self._conn.execute(
+                """
+                DELETE FROM {schema!i}.DECISIONS
+                WHERE DECISION_ID={decision_id!s}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "decision_id": record.decision_id,
+                },
             )
-            VALUES (
-                {decision_id!s},
-                TO_TIMESTAMP({occurred_at!s}, 'YYYY-MM-DD HH24:MI:SS'),
-                {sku!s},
-                {price!f},
-                {risk_level!s},
-                {regret_score!f},
-                {confidence!f},
-                {input_json!s},
-                {record_json!s}
+            self._conn.execute(
+                """
+                INSERT INTO {schema!i}.DECISIONS (
+                    DECISION_ID,
+                    OCCURRED_AT,
+                    SKU,
+                    PRICE_INR,
+                    RISK_LEVEL,
+                    REGRET_SCORE_INR,
+                    CONFIDENCE,
+                    INPUT_JSON,
+                    RECORD_JSON
+                )
+                VALUES (
+                    {decision_id!s},
+                    TO_TIMESTAMP({occurred_at!s}, 'YYYY-MM-DD HH24:MI:SS'),
+                    {sku!s},
+                    {price!f},
+                    {risk_level!s},
+                    {regret_score!f},
+                    {confidence!f},
+                    {input_json!s},
+                    {record_json!s}
+                )
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "decision_id": record.decision_id,
+                    "occurred_at": _timestamp_for_exasol(record.timestamp),
+                    "sku": record.sku,
+                    "price": record.price,
+                    "risk_level": record.risk_level,
+                    "regret_score": record.regret_score,
+                    "confidence": record.confidence,
+                    "input_json": json.dumps(input_payload),
+                    "record_json": json.dumps(payload),
+                },
             )
-            """,
-            {
-                "schema": self.settings.exasol_schema,
-                "decision_id": record.decision_id,
-                "occurred_at": _timestamp_for_exasol(record.timestamp),
-                "sku": record.sku,
-                "price": record.price,
-                "risk_level": record.risk_level,
-                "regret_score": record.regret_score,
-                "confidence": record.confidence,
-                "input_json": json.dumps(input_payload),
-                "record_json": json.dumps(payload),
-            },
-        )
 
     def list_records(
         self,
         limit: int = 100,
         risk_level: str | None = None,
     ) -> list[DecisionRecord]:
-        if risk_level:
-            stmt = self._conn.execute(
-                """
-                SELECT RECORD_JSON
-                FROM {schema!i}.DECISIONS
-                WHERE RISK_LEVEL={risk_level!s}
-                ORDER BY OCCURRED_AT DESC
-                LIMIT {limit!d}
-                """,
-                {
-                    "schema": self.settings.exasol_schema,
-                    "risk_level": risk_level.upper(),
-                    "limit": limit,
-                },
-            )
-        else:
-            stmt = self._conn.execute(
-                """
-                SELECT RECORD_JSON
-                FROM {schema!i}.DECISIONS
-                ORDER BY OCCURRED_AT DESC
-                LIMIT {limit!d}
-                """,
-                {
-                    "schema": self.settings.exasol_schema,
-                    "limit": limit,
-                },
-            )
-        return [_record_from_json(row["RECORD_JSON"]) for row in stmt.fetchall()]
+        with self._lock:
+            if risk_level:
+                stmt = self._conn.execute(
+                    """
+                    SELECT RECORD_JSON
+                    FROM {schema!i}.DECISIONS
+                    WHERE RISK_LEVEL={risk_level!s}
+                    ORDER BY OCCURRED_AT DESC
+                    LIMIT {limit!d}
+                    """,
+                    {
+                        "schema": self.settings.exasol_schema,
+                        "risk_level": risk_level.upper(),
+                        "limit": limit,
+                    },
+                )
+            else:
+                stmt = self._conn.execute(
+                    """
+                    SELECT RECORD_JSON
+                    FROM {schema!i}.DECISIONS
+                    ORDER BY OCCURRED_AT DESC
+                    LIMIT {limit!d}
+                    """,
+                    {
+                        "schema": self.settings.exasol_schema,
+                        "limit": limit,
+                    },
+                )
+            return [_record_from_json(row["RECORD_JSON"]) for row in stmt.fetchall()]
 
     def get(self, decision_id: str) -> DecisionRecord | None:
-        stmt = self._conn.execute(
-            """
-            SELECT RECORD_JSON
-            FROM {schema!i}.DECISIONS
-            WHERE DECISION_ID={decision_id!s}
-            """,
-            {
-                "schema": self.settings.exasol_schema,
-                "decision_id": decision_id,
-            },
-        )
-        row = stmt.fetchone()
+        with self._lock:
+            stmt = self._conn.execute(
+                """
+                SELECT RECORD_JSON
+                FROM {schema!i}.DECISIONS
+                WHERE DECISION_ID={decision_id!s}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "decision_id": decision_id,
+                },
+            )
+            row = stmt.fetchone()
         return _record_from_json(row["RECORD_JSON"]) if row else None
 
     def count(self) -> int:
-        stmt = self._conn.execute(
-            """
-            SELECT COUNT(*) AS RECORD_COUNT
-            FROM {schema!i}.DECISIONS
-            """,
-            {"schema": self.settings.exasol_schema},
-        )
-        row = stmt.fetchone()
+        with self._lock:
+            stmt = self._conn.execute(
+                """
+                SELECT COUNT(*) AS RECORD_COUNT
+                FROM {schema!i}.DECISIONS
+                """,
+                {"schema": self.settings.exasol_schema},
+            )
+            row = stmt.fetchone()
         return int(row["RECORD_COUNT"])
 
 
@@ -195,24 +201,26 @@ class ExasolVectorStore:
         if settings.auto_migrate:
             ensure_schema(settings)
         self._conn = _connect(settings)
+        self._lock = threading.RLock()
 
     def ingest(self, chunks: list[KnowledgeChunk]) -> None:
         if not chunks:
             return
-        current_ids = {chunk.source for chunk in chunks}
-        existing = self._existing_chunks()
-        stale_ids = set(existing) - current_ids
-        for chunk_id in stale_ids:
-            self._conn.execute(
-                """
-                DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
-                WHERE CHUNK_ID={chunk_id!s}
-                """,
-                {
-                    "schema": self.settings.exasol_schema,
-                    "chunk_id": chunk_id,
-                },
-            )
+        with self._lock:
+            current_ids = {chunk.source for chunk in chunks}
+            existing = self._existing_chunks()
+            stale_ids = set(existing) - current_ids
+            for chunk_id in stale_ids:
+                self._conn.execute(
+                    """
+                    DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
+                    WHERE CHUNK_ID={chunk_id!s}
+                    """,
+                    {
+                        "schema": self.settings.exasol_schema,
+                        "chunk_id": chunk_id,
+                    },
+                )
 
         chunks_to_write = [
             chunk
@@ -225,46 +233,47 @@ class ExasolVectorStore:
         embeddings = self.embedding_provider.embed(
             [chunk.content for chunk in chunks_to_write]
         )
-        for chunk, embedding in zip(chunks_to_write, embeddings, strict=True):
-            self._conn.execute(
-                """
-                DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
-                WHERE CHUNK_ID={chunk_id!s}
-                """,
-                {
-                    "schema": self.settings.exasol_schema,
-                    "chunk_id": chunk.source,
-                },
-            )
-            self._conn.execute(
-                """
-                INSERT INTO {schema!i}.KNOWLEDGE_CHUNKS (
-                    CHUNK_ID,
-                    SOURCE_ID,
-                    TITLE,
-                    CONTENT,
-                    EMBEDDING_MODEL,
-                    EMBEDDING_JSON
+        with self._lock:
+            for chunk, embedding in zip(chunks_to_write, embeddings, strict=True):
+                self._conn.execute(
+                    """
+                    DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
+                    WHERE CHUNK_ID={chunk_id!s}
+                    """,
+                    {
+                        "schema": self.settings.exasol_schema,
+                        "chunk_id": chunk.source,
+                    },
                 )
-                VALUES (
-                    {chunk_id!s},
-                    {source!s},
-                    {title!s},
-                    {content!s},
-                    {embedding_model!s},
-                    {embedding_json!s}
+                self._conn.execute(
+                    """
+                    INSERT INTO {schema!i}.KNOWLEDGE_CHUNKS (
+                        CHUNK_ID,
+                        SOURCE_ID,
+                        TITLE,
+                        CONTENT,
+                        EMBEDDING_MODEL,
+                        EMBEDDING_JSON
+                    )
+                    VALUES (
+                        {chunk_id!s},
+                        {source!s},
+                        {title!s},
+                        {content!s},
+                        {embedding_model!s},
+                        {embedding_json!s}
+                    )
+                    """,
+                    {
+                        "schema": self.settings.exasol_schema,
+                        "chunk_id": chunk.source,
+                        "source": chunk.source,
+                        "title": chunk.title,
+                        "content": chunk.content,
+                        "embedding_model": self.embedding_provider.provider_name,
+                        "embedding_json": json.dumps(embedding),
+                    },
                 )
-                """,
-                {
-                    "schema": self.settings.exasol_schema,
-                    "chunk_id": chunk.source,
-                    "source": chunk.source,
-                    "title": chunk.title,
-                    "content": chunk.content,
-                    "embedding_model": self.embedding_provider.provider_name,
-                    "embedding_json": json.dumps(embedding),
-                },
-            )
 
     def _existing_chunks(self) -> dict[str, str]:
         rows = self._conn.execute(
@@ -287,17 +296,18 @@ class ExasolVectorStore:
         min_score: float = 0.08,
     ) -> list[EvidenceItem]:
         query_embedding = self.embedding_provider.embed_query(query)
-        rows = self._conn.execute(
-            """
-            SELECT SOURCE_ID, TITLE, CONTENT, EMBEDDING_JSON
-            FROM {schema!i}.KNOWLEDGE_CHUNKS
-            WHERE EMBEDDING_MODEL={embedding_model!s}
-            """,
-            {
-                "schema": self.settings.exasol_schema,
-                "embedding_model": self.embedding_provider.provider_name,
-            },
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT SOURCE_ID, TITLE, CONTENT, EMBEDDING_JSON
+                FROM {schema!i}.KNOWLEDGE_CHUNKS
+                WHERE EMBEDDING_MODEL={embedding_model!s}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "embedding_model": self.embedding_provider.provider_name,
+                },
+            ).fetchall()
         scored: list[tuple[float, Any]] = []
         for row in rows:
             score = _cosine_similarity(query_embedding, json.loads(row["EMBEDDING_JSON"]))
