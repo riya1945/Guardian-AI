@@ -11,5 +11,6 @@ def get_connection():
         user=os.getenv('EXASOL_USER'),
         password=os.getenv('EXASOL_PASSWORD')
     )
+    conn.execute("CREATE SCHEMA IF NOT EXISTS decisionguard")
     conn.execute("OPEN SCHEMA decisionguard")
     return conn

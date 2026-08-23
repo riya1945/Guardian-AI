@@ -209,7 +209,7 @@ INTEGRATION_URL=https://guardian-ai-ragex.onrender.com/integrations/guardrail-de
 ## Step 6 — Create the schema
 
 ```powershell
-python scripts/run_schema.py
+python run_schema.py
 ```
 
 **Expected output:**
@@ -223,7 +223,7 @@ Tables: [('MARKET_CONTEXT',), ('DECISIONS',), ('OUTCOMES',)]
 ## Step 7 — Seed historical data
 
 ```powershell
-python scripts/seed_data.py
+python seed_data.py
 ```
 
 **Expected output:**
@@ -241,7 +241,7 @@ which the guardrail uses as its baseline for "normal" behavior.
 ## Step 8 — Run the live bot simulator + guardrail
 
 ```powershell
-python scripts/bot_simulator.py
+python bot_simulator.py
 ```
 
 **Expected output (routine decisions):**
@@ -327,13 +327,13 @@ every endpoint interactively.
 
 Test all four guardrail checks against the 10 most recent decisions:
 ```powershell
-python scripts/test_guardrail.py
+python test_guardrail.py
 ```
 
 Test the burst-pattern detector specifically (fires 5 rapid decisions
 on one SKU, expects the 4th and 5th to flag):
 ```powershell
-python scripts/test_burst.py
+python test_burst.py
 ```
 
 ---
