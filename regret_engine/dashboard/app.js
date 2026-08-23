@@ -7,7 +7,9 @@ const state = {
 };
 
 const currency = new Intl.NumberFormat("en-IN", {
+  currency: "INR",
   maximumFractionDigits: 0,
+  style: "currency",
 });
 
 const pct = new Intl.NumberFormat("en-IN", {
@@ -42,6 +44,7 @@ async function loadData() {
     state.health = feed.health;
     state.analytics = feed.analytics;
     state.decisions = feed.decisions;
+    localStorage.setItem("ragex:last-feed", JSON.stringify(feed));
     if (!state.selectedId && state.decisions.length) {
       state.selectedId = state.decisions[0].decision_id;
     }
@@ -49,20 +52,46 @@ async function loadData() {
     setOnline(true);
     render();
   } catch (error) {
-    setOnline(false);
-    els.decisionRows.innerHTML = `<tr><td colspan="7" class="empty">Unable to load dashboard data</td></tr>`;
+    const cached = loadCachedFeed();
+    if (cached) {
+      state.health = cached.health;
+      state.analytics = cached.analytics;
+      state.decisions = cached.decisions;
+      if (!state.selectedId && state.decisions.length) {
+        state.selectedId = state.decisions[0].decision_id;
+      }
+      setOnline(false, true);
+      render();
+      return;
+    }
+    setOnline(false, false);
+    els.decisionRows.innerHTML = `<tr><td colspan="7" class="empty">Waiting for dashboard feed</td></tr>`;
   }
 }
 
-function setOnline(isOnline) {
-  els.connectionStatus.textContent = isOnline ? "Online" : "Offline";
+function loadCachedFeed() {
+  try {
+    const cached = JSON.parse(localStorage.getItem("ragex:last-feed") || "null");
+    if (cached?.health && cached?.analytics && Array.isArray(cached?.decisions)) {
+      return cached;
+    }
+  } catch (error) {
+    localStorage.removeItem("ragex:last-feed");
+  }
+  return null;
+}
+
+function setOnline(isOnline, usingCache = false) {
+  els.connectionStatus.textContent = isOnline ? "API live" : usingCache ? "Cached" : "API pending";
   els.connectionStatus.className = `status-dot ${isOnline ? "online" : "offline"}`;
   const backend = state.health
     ? `${state.health.storage_backend} / ${state.health.vector_backend} / ${state.health.llm_provider}`
     : "Backend connected";
   els.lastUpdated.textContent = isOnline
     ? `${backend} | ${new Date().toLocaleTimeString()}`
-    : "Backend unavailable";
+    : usingCache
+      ? `${backend} | last snapshot`
+      : "Waiting for backend";
 }
 
 function render() {
@@ -76,7 +105,7 @@ function renderMetrics() {
   const analytics = state.analytics;
   if (!analytics) return;
   els.metricTotal.textContent = analytics.total_decisions;
-  els.metricRegret.textContent = `${currency.format(analytics.average_regret)} INR`;
+  els.metricRegret.textContent = currency.format(analytics.average_regret);
   els.metricConfidence.textContent = pct.format(analytics.average_confidence);
   els.metricHighRisk.textContent = analytics.high_risk_decisions;
   els.metricEvidence.textContent = analytics.retrieved_evidence_sources;
@@ -95,9 +124,9 @@ function renderRows() {
         <tr class="${selected}" data-id="${escapeHtml(record.decision_id)}">
           <td>${escapeHtml(record.decision_id)}</td>
           <td>${escapeHtml(record.sku)}</td>
-          <td>${record.price.toFixed(2)} INR</td>
-          <td>${record.regret.best_price.toFixed(2)} INR</td>
-          <td>${currency.format(record.regret_score)} INR</td>
+          <td>${formatMoney(record.price)}</td>
+          <td>${formatMoney(record.regret.best_price)}</td>
+          <td>${formatMoney(record.regret_score)}</td>
           <td><span class="${riskClass(record.risk_level)}">${record.risk_level}</span></td>
           <td>${pct.format(record.confidence)}</td>
         </tr>
@@ -200,7 +229,7 @@ function drawLineChart(canvasId, points) {
   const values = points.map((point) => point.regret);
   const max = Math.max(...values, 1);
   const pad = 30;
-  ctx.strokeStyle = "#2563eb";
+  ctx.strokeStyle = cssVar("--cyan");
   ctx.lineWidth = 2;
   ctx.beginPath();
   points.forEach((point, index) => {
@@ -218,14 +247,14 @@ function drawRiskBars(canvasId, breakdown) {
   clear(ctx);
   const entries = ["LOW", "MEDIUM", "HIGH"].map((risk) => [risk, breakdown[risk] || 0]);
   const max = Math.max(...entries.map(([, count]) => count), 1);
-  const colors = { LOW: "#16803c", MEDIUM: "#b7791f", HIGH: "#c24141" };
+  const colors = { LOW: cssVar("--green"), MEDIUM: cssVar("--amber"), HIGH: cssVar("--red") };
   entries.forEach(([risk, count], index) => {
     const x = 44 + index * 112;
     const height = (count / max) * 150;
     ctx.fillStyle = colors[risk];
     ctx.fillRect(x, 178 - height, 58, height);
-    ctx.fillStyle = "#667085";
-    ctx.font = "12px system-ui";
+    ctx.fillStyle = cssVar("--text-dim");
+    ctx.font = "12px Inter, Arial, sans-serif";
     ctx.fillText(risk, x + 3, 202);
     ctx.fillText(String(count), x + 22, 170 - height);
   });
@@ -240,7 +269,7 @@ function drawScatter(canvasId, points) {
   const regrets = points.map((point) => point.regret);
   const maxRegret = Math.max(...regrets, 1);
   const pad = 30;
-  ctx.fillStyle = "#2563eb";
+  ctx.fillStyle = cssVar("--violet");
   points.forEach((point) => {
     const x = pad + point.confidence * (canvas.width - pad * 2);
     const y = canvas.height - pad - (point.regret / maxRegret) * (canvas.height - pad * 2);
@@ -252,7 +281,7 @@ function drawScatter(canvasId, points) {
 
 function drawAxes(ctx) {
   const { canvas } = ctx;
-  ctx.strokeStyle = "#d9dee8";
+  ctx.strokeStyle = cssVar("--connector");
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(30, 12);
@@ -272,6 +301,14 @@ function clear(ctx) {
 
 function riskClass(risk) {
   return `risk-pill risk-${String(risk).toLowerCase()}`;
+}
+
+function formatMoney(value) {
+  return currency.format(value || 0);
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 function escapeHtml(value) {

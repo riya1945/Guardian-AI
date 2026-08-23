@@ -9,9 +9,12 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">Guardian-AI</p>
-          <h1>Pricing Regret Console</h1>
+        <div class="brand-block">
+          <div class="brand-mark">RX</div>
+          <div>
+            <p class="eyebrow">RaGeX guardrail</p>
+            <h1><span>Pricing</span> Regret Console</h1>
+          </div>
         </div>
         <div class="status-strip">
           <span id="connectionStatus" class="status-dot">Connecting</span>
@@ -21,6 +24,33 @@
 
       <main class="layout">
         <section class="workspace">
+          <section class="pipeline-strip" aria-label="Pricing decision pipeline">
+            <div class="pipeline-node pipeline-node--cyan">
+              <span class="icon-chip">SIM</span>
+              <span>Simulator</span>
+            </div>
+            <div class="pipeline-node pipeline-node--cyan">
+              <span class="icon-chip">DB</span>
+              <span>Exasol</span>
+            </div>
+            <div class="pipeline-node pipeline-node--green">
+              <span class="icon-chip">GR</span>
+              <span>Guardrail</span>
+            </div>
+            <div class="pipeline-node pipeline-node--red">
+              <span class="icon-chip">₹</span>
+              <span>Regret</span>
+            </div>
+            <div class="pipeline-node pipeline-node--violet">
+              <span class="icon-chip">AI</span>
+              <span>RAG</span>
+            </div>
+            <div class="pipeline-node pipeline-node--violet">
+              <span class="icon-chip">UI</span>
+              <span>Dashboard</span>
+            </div>
+          </section>
+
           <section class="metrics-grid" aria-label="Overview metrics">
             <article class="metric">
               <span>Total decisions</span>
@@ -28,7 +58,7 @@
             </article>
             <article class="metric">
               <span>Average regret</span>
-              <strong id="metricRegret">0 INR</strong>
+              <strong id="metricRegret">₹0</strong>
             </article>
             <article class="metric">
               <span>Average confidence</span>
@@ -72,7 +102,7 @@
             <div class="section-head">
               <div>
                 <h2>Decision Explorer</h2>
-                <p>Live records from FastAPI, scored by existing regret model and enriched by RAG.</p>
+                <p>Live pricing records scored for regret and grounded evidence.</p>
               </div>
               <div class="filters" aria-label="Risk filters">
                 <button class="filter active" data-risk="">All</button>
@@ -115,7 +145,7 @@
           </div>
 
           <div id="detailBody" class="detail-body">
-            <p class="empty">Select a row to inspect decision, evidence, counterfactual, and uncertainty.</p>
+            <p class="empty">Select a decision row.</p>
           </div>
         </aside>
       </main>

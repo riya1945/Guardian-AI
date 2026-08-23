@@ -15,6 +15,7 @@ Submission materials:
 - Sample integration payload: `submission/samples/guardrail_decision_payload.json`
 - Configuration notes: `submission/configuration-notes.md`
 - Demo video: https://drive.google.com/drive/folders/1Q3yXdWEE_vN5B5YmSyDkjWvCQJievem8?usp=sharing
+- Dashboard style: dark navy RaGeX console matching the pitch deck design system
 
 ## Problem
 
@@ -186,6 +187,8 @@ http://127.0.0.1:8000/dashboard
 
 Dashboard shows total decisions, average regret, average confidence, high-risk decisions, evidence coverage, regret over time, risk breakdown, confidence versus regret, decision explorer, and detail view with factors, counterfactual, evidence, and uncertainty.
 
+The dashboard uses the RaGeX deck design system: dark navy surfaces, cyan for data and Exasol, violet for RAG and evidence, and green, amber, red only for decision severity. The frontend polls `GET /dashboard/feed`, a consolidated endpoint that returns health, analytics, and decision records in one response.
+
 ## API Endpoints
 
 ```text
@@ -207,6 +210,7 @@ GET  /dashboard/leaderboard
 GET  /dashboard/model
 GET  /dashboard/ab
 GET  /dashboard/settings
+GET  /dashboard/feed
 ```
 
 ## Persistence

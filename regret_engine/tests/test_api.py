@@ -95,9 +95,9 @@ def test_decision_feed_analytics_and_dashboard_routes() -> None:
     assert analytics_response.status_code == 200
     assert analytics_response.json()["total_decisions"] > 0
     assert dashboard_response.status_code == 200
-    assert "Pricing Regret Console" in dashboard_response.text
+    assert "Regret Console" in dashboard_response.text
     assert root_response.status_code == 200
-    assert "Pricing Regret Console" in root_response.text
+    assert "Regret Console" in root_response.text
 
 
 def test_explain_refuses_unrelated_question() -> None:
