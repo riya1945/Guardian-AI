@@ -148,6 +148,42 @@ Open dashboard:
 http://127.0.0.1:8000/dashboard
 ```
 
+## Render deployment
+
+This branch includes `render.yaml` for a Render web service named `guardian-ai-ragex`.
+
+Render settings:
+
+```text
+Build command: pip install -r regret_engine/requirements.txt
+Start command: uvicorn regret_engine.api.main:app --host 0.0.0.0 --port $PORT
+Health check: /health
+```
+
+Set these secrets in Render environment variables, not in git:
+
+```text
+EXASOL_DSN
+EXASOL_USER
+EXASOL_PASSWORD
+GROQ_API_KEY
+GEMINI_API_KEY
+```
+
+For a cloud Render deploy, `EXASOL_DSN` must be a host reachable from Render. `127.0.0.1:8563` only works from the same machine running Exasol and will not work from Render.
+
+The Render blueprint defaults `GUARDIAN_EMBEDDING_PROVIDER=hash` so the service does not fail startup when Gemini embedding quota is exhausted. To use Gemini embeddings in Render, set:
+
+```text
+GUARDIAN_EMBEDDING_PROVIDER=gemini
+```
+
+After deployment, give Person A this integration URL:
+
+```text
+https://<render-service>.onrender.com/integrations/guardrail-decision
+```
+
 Main endpoints:
 
 ```text

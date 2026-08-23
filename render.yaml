@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: guardian-ai-ragex
+    runtime: python
+    plan: free
+    buildCommand: pip install -r regret_engine/requirements.txt
+    startCommand: uvicorn regret_engine.api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GUARDIAN_AUTO_MIGRATE
+        value: "true"
+      - key: GUARDIAN_STORAGE_BACKEND
+        value: exasol
+      - key: GUARDIAN_VECTOR_BACKEND
+        value: exasol
+      - key: GUARDIAN_EMBEDDING_PROVIDER
+        value: hash
+      - key: GUARDIAN_EMBEDDING_DIM
+        value: "768"
+      - key: LLM_CHAIN
+        value: groq,gemini,deterministic
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-2.5-flash-lite
+      - key: GEMINI_EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: EXASOL_DSN
+        sync: false
+      - key: EXASOL_USER
+        sync: false
+      - key: EXASOL_PASSWORD
+        sync: false
+      - key: EXASOL_SCHEMA
+        value: GUARDIAN_AI
+      - key: EXASOL_ENCRYPTION
+        value: "true"
+      - key: EXASOL_COMPRESSION
+        value: "true"
+      - key: EXASOL_CERTIFICATE_VALIDATION
+        value: "false"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
