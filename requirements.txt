@@ -1,0 +1,8 @@
+pyexasol
+fastapi
+uvicorn
+pandas
+numpy
+python-dotenv
+pydantic
+requests

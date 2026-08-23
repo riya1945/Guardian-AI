@@ -1,221 +1,76 @@
 # Guardian-AI
 
-Guardian-AI is a pricing decision intelligence demo. It combines the existing regret engine with a RAG explain layer, Exasol persistence, Exasol-backed evidence retrieval, optional free-tier LLM providers, and a browser dashboard.
+Guardian-AI, also called RaGeX in the demo, is an AI pricing guardrail system. It combines a live pricing simulator, Exasol-backed guardrail checks, a regret engine, grounded RAG explanations, and a dashboard.
 
-## What Exists
+## Team Components
 
-The repository already had a Python regret engine trained on synthetic pricing data. The model predicts `units_sold` from SKU, price, historical demand, historical price, and calendar features. Regret is then calculated as:
+- `divija`: Data layer, Exasol schema, seed data, bot simulator, live guardrail checks.
+- `riya`: Regret engine, reward model, off-policy counterfactual scoring.
+- `ranbir`: RAG explain layer, evidence retrieval, dashboard, Render integration endpoint.
+
+## Live Demo
+
+Dashboard:
 
 ```text
-best predicted counterfactual revenue - selected predicted revenue
+https://guardian-ai-ragex.onrender.com/dashboard
 ```
 
-Revenue is treated as INR in the API output. The included dataset is synthetic and is intended for demo and test use only.
+Guardrail integration endpoint:
+
+```text
+https://guardian-ai-ragex.onrender.com/integrations/guardrail-decision
+```
+
+Health check:
+
+```text
+https://guardian-ai-ragex.onrender.com/health
+```
 
 ## Architecture
 
 ```text
-                 Decision Input
-                       |
-                       v
-                 Regret Engine
-                       |
-                       v
-                Decision Record
-                       |
-                       v
-                Explanation Query
-                       |
-                       v
-                 RAG Retriever
-                       |
-                       v
-                Evidence Context
-                       |
-                       v
-          Groq/Gemini or Deterministic Generator
-                       |
-                       v
-                    Dashboard
+Bot Simulator
+  -> Exasol decision tables
+  -> Guardrail flags
+  -> Integration endpoint
+  -> Regret scoring
+  -> RAG evidence retrieval
+  -> Grounded explanation
+  -> Dashboard
 ```
 
-## Regret Engine
+## Data Layer And Guardrail
 
-Existing model artifacts live under `regret_engine/models/`. The new service wrapper keeps the original scoring behavior and adds a structured output layer with:
+Top-level files provide Divija's Exasol data layer and real-time guardrail demo:
 
-- selected price and best counterfactual price
-- predicted demand and revenue for selected and best prices
-- regret amount and regret percentage
-- risk level
-- confidence estimate
-- key factors
-- assumptions and uncertainties
+- `schema.sql`: market, decision, and outcome tables
+- `run_schema.py`: schema setup
+- `seed_data.py`: deterministic synthetic historical data
+- `bot_simulator.py`: live pricing bot with anomaly injection
+- `app/guardrail.py`: floor, ceiling, z-score, and burst checks
+- `main.py`: FastAPI endpoints for latest decisions, flagged decisions, and stats
 
-Backward-compatible endpoint:
-
-```text
-POST /calculate-regret
-```
-
-## Persistence
-
-Guardian-AI supports Exasol as the persistent store. Set `EXASOL_DSN`, `EXASOL_USER`, and `EXASOL_PASSWORD`; the app creates required schema/tables on startup when `GUARDIAN_AUTO_MIGRATE=true`.
-
-Persistent objects:
-
-- `GUARDIAN_AI.DECISIONS`: scored decision records and explanation payloads
-- `GUARDIAN_AI.KNOWLEDGE_CHUNKS`: chunked policy/incident knowledge with serialized 768-dim embeddings
-
-When Exasol credentials are not configured, the app falls back to memory for local tests.
-
-## RAG Explain Layer
-
-Knowledge files live under `regret_engine/knowledge/`. The active corpus includes pricing policy, guardrail rules, incident reports, review SOP, escalation rules, business constraints, and good/bad decision examples. Demo decisions and gold RAG evaluation cases live under `regret_engine/data/`.
-
-Fixture layout:
-
-- `regret_engine/knowledge/pricing_policy.md`
-- `regret_engine/knowledge/guardrail_rules.md`
-- `regret_engine/knowledge/incident_reports.md`
-- `regret_engine/knowledge/review_sop.md`
-- `regret_engine/knowledge/escalation_rules.md`
-- `regret_engine/knowledge/business_constraints.md`
-- `regret_engine/knowledge/decision_examples.md`
-- `regret_engine/data/mock_decisions.json`
-- `regret_engine/data/decision_labels.json`
-- `regret_engine/data/gold_eval.json`
-- `contracts/decision_contract.md`
-
-The RAG pipeline:
-
-```text
-Markdown docs -> chunking -> 768-dim embeddings -> Exasol chunk table -> Python cosine top-k retrieval -> grounded explanation
-```
-
-Default embeddings use a deterministic hash provider so tests never call external APIs. Set `GUARDIAN_EMBEDDING_PROVIDER=gemini` and `GEMINI_API_KEY` to use Gemini embeddings.
-
-The explanation generator uses `LLM_CHAIN`, defaulting to:
-
-```text
-groq,gemini,deterministic
-```
-
-Groq and Gemini are used only when keys are present. Deterministic fallback keeps the demo working offline. The generator cites only retrieved repository evidence. If retrieval fails or the question asks for unsupported fields, it returns:
-
-```text
-This information is not found in the uploaded documents
-```
-
-No paid LLM key is required.
-
-## Dashboard
-
-Dashboard is served by FastAPI:
-
-```text
-GET /dashboard
-```
-
-It shows:
-
-- total decisions
-- average regret
-- average confidence
-- high-risk decisions
-- evidence coverage
-- regret over time
-- risk breakdown
-- confidence versus regret
-- decision explorer with risk filters
-- decision detail view with factors, counterfactual, evidence, and uncertainty
-
-Dashboard metrics are loaded from backend APIs, not hardcoded.
-
-## API
-
-Run backend:
+Local simulator setup:
 
 ```bash
-cd regret_engine
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-cd ..
-uvicorn regret_engine.api.main:app --reload
+cp .env.example .env
+python run_schema.py
+python seed_data.py
+python bot_simulator.py
 ```
 
-Open dashboard:
-
-```text
-http://127.0.0.1:8000/dashboard
-```
-
-## Render deployment
-
-This branch includes `render.yaml` for a Render web service named `guardian-ai-ragex`.
-
-Render settings:
-
-```text
-Build command: pip install -r regret_engine/requirements.txt
-Start command: uvicorn regret_engine.api.main:app --host 0.0.0.0 --port $PORT
-Health check: /health
-```
-
-Set these secrets in Render environment variables, not in git:
-
-```text
-EXASOL_DSN
-EXASOL_USER
-EXASOL_PASSWORD
-GROQ_API_KEY
-GEMINI_API_KEY
-```
-
-For a cloud Render deploy, `EXASOL_DSN` must be a host reachable from Render. `127.0.0.1:8563` only works from the same machine running Exasol and will not work from Render. The Render blueprint uses `GUARDIAN_STORAGE_BACKEND=auto` and `GUARDIAN_VECTOR_BACKEND=auto`, so the deployed demo remains usable with in-memory persistence until a reachable Exasol host or tunnel is supplied.
-
-The Render blueprint defaults `GUARDIAN_EMBEDDING_PROVIDER=hash` so the service does not fail startup when Gemini embedding quota is exhausted. To use Gemini embeddings in Render, set:
-
-```text
-GUARDIAN_EMBEDDING_PROVIDER=gemini
-```
-
-After deployment, give Person A this integration URL:
-
-```text
-https://<render-service>.onrender.com/integrations/guardrail-decision
-```
-
-Main endpoints:
-
-```text
-GET  /health
-POST /calculate-regret
-POST /decision
-POST /integrations/guardrail-decision
-GET  /integrations/contracts
-GET  /decisions
-GET  /decisions/{decision_id}
-POST /explain/{decision_id}
-GET  /decisions/{decision_id}/evidence
-GET  /analytics
-GET  /rag/evaluation
-GET  /dashboard
-```
-
-## Team Integration
-
-Branch ownership:
-
-- `divija`: Data layer, simulator, live guardrail, and Exasol pricing decision tables.
-- `riya`: Regret engine and off-policy counterfactual scoring.
-- `ranbir`: RAG explain layer, grounded evidence, dashboard, and integration adapters.
-
-Ranbir branch accepts Divija's guardrail output directly:
+Simulator handoff payload is posted to:
 
 ```text
 POST /integrations/guardrail-decision
 ```
 
-Accepted payload shape:
+Expected payload:
 
 ```json
 {
@@ -235,23 +90,117 @@ Accepted payload shape:
 }
 ```
 
-The adapter converts this into the richer regret/RAG decision shape, scores regret, retrieves policy evidence, stores the record, and makes it visible in `/dashboard`.
+## Regret Engine
 
-Environment variables:
+The regret engine lives under `regret_engine/`. It trains or loads a reward model from synthetic pricing history and estimates regret as:
 
 ```text
-EXASOL_DSN                   host:8563
+best predicted counterfactual revenue - selected predicted revenue
+```
+
+Core outputs include selected price, best counterfactual price, predicted demand, predicted revenue, regret amount, regret percentage, risk level, confidence, factors, assumptions, and uncertainties.
+
+Backward-compatible endpoint:
+
+```text
+POST /calculate-regret
+```
+
+## RAG Explain Layer
+
+Knowledge files live under `regret_engine/knowledge/`. The corpus includes pricing policy, guardrail rules, incident reports, review SOP, escalation rules, business constraints, and examples of good and bad decisions.
+
+RAG flow:
+
+```text
+Markdown docs -> chunking -> 768-dim embeddings -> Exasol vector table -> cosine retrieval -> grounded explanation
+```
+
+Default embeddings use deterministic hashing so local tests and Render startup do not fail on quota. Set `GUARDIAN_EMBEDDING_PROVIDER=gemini` and `GEMINI_API_KEY` to use Gemini embeddings.
+
+Generation uses `LLM_CHAIN`, defaulting to:
+
+```text
+groq,gemini,deterministic
+```
+
+Groq and Gemini are optional. Deterministic fallback keeps the demo running without paid providers.
+
+## Dashboard
+
+Run service:
+
+```bash
+cd regret_engine
+pip install -r requirements.txt
+cd ..
+uvicorn regret_engine.api.main:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/dashboard
+```
+
+Dashboard shows total decisions, average regret, average confidence, high-risk decisions, evidence coverage, regret over time, risk breakdown, confidence versus regret, decision explorer, and detail view with factors, counterfactual, evidence, and uncertainty.
+
+## API Endpoints
+
+```text
+GET  /health
+POST /calculate-regret
+POST /decision
+POST /integrations/guardrail-decision
+GET  /integrations/contracts
+GET  /decisions
+GET  /decisions/{decision_id}
+POST /explain/{decision_id}
+GET  /decisions/{decision_id}/evidence
+GET  /analytics
+GET  /rag/evaluation
+GET  /dashboard
+GET  /dashboard/metrics
+GET  /dashboard/interventions
+GET  /dashboard/leaderboard
+GET  /dashboard/model
+GET  /dashboard/ab
+GET  /dashboard/settings
+```
+
+## Persistence
+
+Ranbir's service supports Exasol as persistent storage. Set `EXASOL_DSN`, `EXASOL_USER`, and `EXASOL_PASSWORD`; startup creates required schema objects when `GUARDIAN_AUTO_MIGRATE=true`.
+
+Persistent objects:
+
+- `GUARDIAN_AI.DECISIONS`: scored decision records and explanation payloads
+- `GUARDIAN_AI.KNOWLEDGE_CHUNKS`: chunked policy and incident knowledge with serialized 768-dim embeddings
+
+If Exasol credentials are not configured, the app falls back to memory for local tests.
+
+## Environment
+
+Copy `.env.example` to `.env`. Keep secrets local or in Render environment variables only.
+
+Important variables:
+
+```text
+EXASOL_DSN                   host:8563 for RAG/dashboard service
+EXASOL_HOST                  host for local simulator
+EXASOL_PORT                  port for local simulator
 EXASOL_USER                  Exasol username
-EXASOL_PASSWORD              Exasol password
+EXASOL_PASSWORD              Exasol password or token
 EXASOL_SCHEMA                GUARDIAN_AI by default
 EXASOL_ENCRYPTION            true by default
 EXASOL_COMPRESSION           true by default
-EXASOL_CERTIFICATE_VALIDATION false for local starter self-signed TLS; true for trusted certs
-GUARDIAN_AUTO_MIGRATE        true by default; creates Exasol schema objects
+EXASOL_CERTIFICATE_VALIDATION false for local starter self-signed TLS, true for trusted certs
+GUARDIAN_AUTO_MIGRATE        true by default
 GUARDIAN_STORAGE_BACKEND     auto, exasol, or memory
 GUARDIAN_VECTOR_BACKEND      auto, exasol, or memory
 GUARDIAN_EMBEDDING_PROVIDER  hash or gemini
 GUARDIAN_EMBEDDING_DIM       768
+INTEGRATION_URL              Render guardrail handoff endpoint
 LLM_CHAIN                    groq,gemini,deterministic
 GROQ_API_KEY                 optional
 GROQ_MODEL                   openai/gpt-oss-20b by default
@@ -260,60 +209,47 @@ GEMINI_CHAT_MODEL            gemini-2.5-flash-lite by default
 GEMINI_EMBEDDING_MODEL       gemini-embedding-001 by default
 ```
 
-Apply schema manually if preferred:
+## Render Deployment
 
-```bash
-exaplus -c "$EXASOL_DSN" -u "$EXASOL_USER" -p "$EXASOL_PASSWORD" -f regret_engine/db/exasol_schema.sql
+This repo includes `render.yaml` for service `guardian-ai-ragex`.
+
+Render settings:
+
+```text
+Build command: pip install -r regret_engine/requirements.txt
+Start command: uvicorn regret_engine.api.main:app --host 0.0.0.0 --port $PORT
+Health check: /health
 ```
 
-Or run the bundled setup script, which applies schema and ingests the knowledge corpus into Exasol:
+Set secrets in Render environment variables, not git:
 
-```bash
-python -m regret_engine.scripts.setup_persistence
+```text
+EXASOL_DSN
+EXASOL_USER
+EXASOL_PASSWORD
+GROQ_API_KEY
+GEMINI_API_KEY
 ```
 
-Example decision payload:
+The deployed service currently runs at:
 
-```json
-{
-  "decision_id": "manual-001",
-  "timestamp": "2026-08-22T10:00:00+05:30",
-  "sku": "SYN0001",
-  "price": 18.5,
-  "previous_units": 8,
-  "previous_price": 17.25,
-  "rolling_7d_units": 8.4,
-  "rolling_30d_units": 7.9,
-  "demand_trend": 1.04,
-  "demand_momentum": 0.08,
-  "day_of_week": 5,
-  "month": 8,
-  "year": 2026,
-  "is_weekend": 1,
-  "historical_avg_price": 17.1
-}
+```text
+https://guardian-ai-ragex.onrender.com
 ```
 
 ## Tests
+
+Run regret/RAG/API tests:
 
 ```bash
 pytest regret_engine/tests
 ```
 
-Tests cover:
+Data-layer tests require a reachable Exasol instance:
 
-- existing regret endpoint compatibility
-- structured decision records
-- provided corpus and JSON fixtures
-- RAG retrieval
-- grounded explanation behavior
-- gold-set RAG evaluation and refusal behavior
-- API analytics and dashboard route
-
-## Limitations
-
-- Training data is synthetic.
-- Exasol is used only when `EXASOL_DSN`, `EXASOL_USER`, and `EXASOL_PASSWORD` are configured.
-- Evidence embeddings are stored in Exasol as JSON text and ranked with Python cosine similarity.
-- Groq/Gemini are optional and skipped when keys are missing.
-- Confidence is an explainability score derived from model context and evidence coverage, not model calibration.
+```bash
+python run_schema.py
+python seed_data.py
+python test_guardrail.py
+python test_burst.py
+```

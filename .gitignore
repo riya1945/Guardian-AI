@@ -7,3 +7,7 @@ venv/
 .env.*
 !.env.example
 .render-exasol.env
+node_modules/
+.next/
+out/
+dist/
