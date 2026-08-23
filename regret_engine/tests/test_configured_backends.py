@@ -20,6 +20,7 @@ def _settings(**overrides: object) -> Settings:
         "exasol_schema": "GUARDIAN_AI",
         "exasol_encryption": True,
         "exasol_compression": True,
+        "exasol_certificate_validation": True,
         "llm_chain": ("deterministic",),
         "groq_api_key": None,
         "groq_model": "llama-3.1-8b-instant",

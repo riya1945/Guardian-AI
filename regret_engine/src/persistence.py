@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 from pathlib import Path
 from typing import Any
 
@@ -214,7 +215,7 @@ class ExasolVectorStore:
                 """
                 INSERT INTO {schema!i}.KNOWLEDGE_CHUNKS (
                     CHUNK_ID,
-                    SOURCE,
+                    SOURCE_ID,
                     TITLE,
                     CONTENT,
                     EMBEDDING_MODEL,
@@ -249,7 +250,7 @@ class ExasolVectorStore:
         query_embedding = self.embedding_provider.embed_query(query)
         rows = self._conn.execute(
             """
-            SELECT SOURCE, TITLE, CONTENT, EMBEDDING_JSON
+            SELECT SOURCE_ID, TITLE, CONTENT, EMBEDDING_JSON
             FROM {schema!i}.KNOWLEDGE_CHUNKS
             WHERE EMBEDDING_MODEL={embedding_model!s}
             """,
@@ -267,7 +268,7 @@ class ExasolVectorStore:
         scored.sort(key=lambda item: item[0], reverse=True)
         return [
             EvidenceItem(
-                source=row["SOURCE"],
+                source=row["SOURCE_ID"],
                 title=row["TITLE"],
                 content=row["CONTENT"],
                 relevance_score=round(score, 4),
@@ -358,6 +359,11 @@ def _connect(settings: Settings, use_schema: bool = True):
     }
     if use_schema:
         kwargs["schema"] = settings.exasol_schema
+    if settings.exasol_encryption and not settings.exasol_certificate_validation:
+        kwargs["websocket_sslopt"] = {
+            "cert_reqs": ssl.CERT_NONE,
+            "check_hostname": False,
+        }
     return pyexasol.connect(**kwargs)
 
 

@@ -17,6 +17,7 @@ class Settings:
     exasol_schema: str
     exasol_encryption: bool
     exasol_compression: bool
+    exasol_certificate_validation: bool
     llm_chain: tuple[str, ...]
     groq_api_key: str | None
     groq_model: str
@@ -38,6 +39,10 @@ def load_settings() -> Settings:
         exasol_schema=os.getenv("EXASOL_SCHEMA", "GUARDIAN_AI").upper(),
         exasol_encryption=_bool_env("EXASOL_ENCRYPTION", default=True),
         exasol_compression=_bool_env("EXASOL_COMPRESSION", default=True),
+        exasol_certificate_validation=_bool_env(
+            "EXASOL_CERTIFICATE_VALIDATION",
+            default=True,
+        ),
         llm_chain=tuple(
             item.strip().lower()
             for item in os.getenv("LLM_CHAIN", "groq,gemini,deterministic").split(",")

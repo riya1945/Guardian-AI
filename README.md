@@ -172,6 +172,7 @@ EXASOL_PASSWORD              Exasol password
 EXASOL_SCHEMA                GUARDIAN_AI by default
 EXASOL_ENCRYPTION            true by default
 EXASOL_COMPRESSION           true by default
+EXASOL_CERTIFICATE_VALIDATION false for local starter self-signed TLS; true for trusted certs
 GUARDIAN_AUTO_MIGRATE        true by default; creates Exasol schema objects
 GUARDIAN_STORAGE_BACKEND     auto, exasol, or memory
 GUARDIAN_VECTOR_BACKEND      auto, exasol, or memory
