@@ -182,7 +182,7 @@ function renderDetail() {
     <section class="detail-block">
       <h3>Uncertainty</h3>
       <ul class="detail-list">
-        ${(explanation?.uncertainties || record.uncertainties)
+        ${(explanation?.uncertainties || record.uncertainties || [])
           .map((item) => `<li>${escapeHtml(item)}</li>`)
           .join("")}
       </ul>
@@ -194,9 +194,9 @@ function renderFactor(factor) {
   const width = Math.max(6, Math.round(factor.magnitude * 100));
   return `
     <div class="factor-row">
-      <span>${escapeHtml(factor.factor)}</span>
+      <span title="${escapeHtml(factor.factor)}">${escapeHtml(factor.factor)}</span>
       <div class="bar"><span style="width:${width}%"></span></div>
-      <span>${factor.impact}</span>
+      <span title="${escapeHtml(factor.impact)}">${factor.impact}</span>
     </div>
   `;
 }
