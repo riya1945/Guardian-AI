@@ -14,9 +14,9 @@ Submission materials:
 - Screenshots: `submission/screenshots/`
 - Sample integration payload: `submission/samples/guardrail_decision_payload.json`
 - Configuration notes: `submission/configuration-notes.md`
-- Demo video: https://drive.google.com/drive/folders/1Q3yXdWEE_vN5B5YmSyDkjWvCQJievem8?usp=sharing
-- Generated demo video: `submission/demo-video/ragex-demo-3min.mp4`
-- Dashboard style: dark navy RaGeX console matching the pitch deck design system
+- Demo video: https://drive.google.com/file/d/1x1OJuCxTL3-nEVLcw4hL3Ej_Dc03Q9-y/view?usp=sharing
+
+
 
 ## Problem
 
