@@ -120,8 +120,9 @@ function renderRows() {
   els.decisionRows.innerHTML = state.decisions
     .map((record) => {
       const selected = record.decision_id === state.selectedId ? "selected" : "";
+      const isSelected = record.decision_id === state.selectedId;
       return `
-        <tr class="${selected}" data-id="${escapeHtml(record.decision_id)}">
+        <tr class="${selected}" data-id="${escapeHtml(record.decision_id)}" tabindex="0" aria-selected="${isSelected}">
           <td>${escapeHtml(record.decision_id)}</td>
           <td>${escapeHtml(record.sku)}</td>
           <td>${formatMoney(record.price)}</td>
@@ -135,10 +136,17 @@ function renderRows() {
     .join("");
 
   els.decisionRows.querySelectorAll("tr[data-id]").forEach((row) => {
-    row.addEventListener("click", () => {
+    const select = () => {
       state.selectedId = row.dataset.id;
       renderRows();
       renderDetail();
+    };
+    row.addEventListener("click", select);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        select();
+      }
     });
   });
 }
@@ -221,7 +229,7 @@ function renderCharts() {
 function drawLineChart(canvasId, points) {
   const ctx = getCanvas(canvasId);
   if (!ctx) return;
-  const { canvas } = ctx;
+  const { width, height } = canvasDimensions(ctx);
   clear(ctx);
   drawAxes(ctx);
 
@@ -233,8 +241,8 @@ function drawLineChart(canvasId, points) {
   ctx.lineWidth = 2;
   ctx.beginPath();
   points.forEach((point, index) => {
-    const x = pad + (index / Math.max(points.length - 1, 1)) * (canvas.width - pad * 2);
-    const y = canvas.height - pad - (point.regret / max) * (canvas.height - pad * 2);
+    const x = pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2);
+    const y = height - pad - (point.regret / max) * (height - pad * 2);
     if (index === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
@@ -248,22 +256,31 @@ function drawRiskBars(canvasId, breakdown) {
   const entries = ["LOW", "MEDIUM", "HIGH"].map((risk) => [risk, breakdown[risk] || 0]);
   const max = Math.max(...entries.map(([, count]) => count), 1);
   const colors = { LOW: cssVar("--green"), MEDIUM: cssVar("--amber"), HIGH: cssVar("--red") };
+  const { width, height } = canvasDimensions(ctx);
+  const pad = 30;
+  const available = width - pad * 2;
+  const slot = available / entries.length;
+  const barWidth = Math.max(28, Math.min(58, slot * 0.45));
+  const baseY = height - 30;
+  ctx.textAlign = "center";
   entries.forEach(([risk, count], index) => {
-    const x = 44 + index * 112;
-    const height = (count / max) * 150;
+    const centerX = pad + slot * index + slot / 2;
+    const barHeight = (count / max) * (height - 80);
+    const x = centerX - barWidth / 2;
     ctx.fillStyle = colors[risk];
-    ctx.fillRect(x, 178 - height, 58, height);
+    ctx.fillRect(x, baseY - barHeight, barWidth, barHeight);
     ctx.fillStyle = cssVar("--text-dim");
     ctx.font = "12px Inter, Arial, sans-serif";
-    ctx.fillText(risk, x + 3, 202);
-    ctx.fillText(String(count), x + 22, 170 - height);
+    ctx.fillText(risk, centerX, baseY + 24);
+    ctx.fillText(String(count), centerX, baseY - barHeight - 8);
   });
+  ctx.textAlign = "start";
 }
 
 function drawScatter(canvasId, points) {
   const ctx = getCanvas(canvasId);
   if (!ctx) return;
-  const { canvas } = ctx;
+  const { width, height } = canvasDimensions(ctx);
   clear(ctx);
   drawAxes(ctx);
   const regrets = points.map((point) => point.regret);
@@ -271,8 +288,8 @@ function drawScatter(canvasId, points) {
   const pad = 30;
   ctx.fillStyle = cssVar("--violet");
   points.forEach((point) => {
-    const x = pad + point.confidence * (canvas.width - pad * 2);
-    const y = canvas.height - pad - (point.regret / maxRegret) * (canvas.height - pad * 2);
+    const x = pad + point.confidence * (width - pad * 2);
+    const y = height - pad - (point.regret / maxRegret) * (height - pad * 2);
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
@@ -280,23 +297,40 @@ function drawScatter(canvasId, points) {
 }
 
 function drawAxes(ctx) {
-  const { canvas } = ctx;
+  const { width, height } = canvasDimensions(ctx);
   ctx.strokeStyle = cssVar("--connector");
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(30, 12);
-  ctx.lineTo(30, canvas.height - 30);
-  ctx.lineTo(canvas.width - 12, canvas.height - 30);
+  ctx.lineTo(30, height - 30);
+  ctx.lineTo(width - 12, height - 30);
   ctx.stroke();
 }
 
 function getCanvas(id) {
   const canvas = document.getElementById(id);
-  return canvas ? canvas.getContext("2d") : null;
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+
+function canvasDimensions(ctx) {
+  const rect = ctx.canvas.getBoundingClientRect();
+  return { width: rect.width, height: rect.height };
 }
 
 function clear(ctx) {
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  const { width, height } = canvasDimensions(ctx);
+  ctx.clearRect(0, 0, width, height);
 }
 
 function riskClass(risk) {
@@ -321,9 +355,13 @@ function escapeHtml(value) {
 }
 
 document.querySelectorAll(".filter").forEach((button) => {
+  button.setAttribute("aria-pressed", String(button.classList.contains("active")));
   button.addEventListener("click", () => {
     document.querySelectorAll(".filter").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
+    document
+      .querySelectorAll(".filter")
+      .forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
     state.risk = button.dataset.risk || "";
     state.selectedId = null;
     loadData();

@@ -96,6 +96,10 @@ def test_decision_feed_analytics_and_dashboard_routes() -> None:
     assert analytics_response.json()["total_decisions"] > 0
     assert dashboard_response.status_code == 200
     assert "Regret Console" in dashboard_response.text
+    assert 'rel="icon"' in dashboard_response.text
+    assert 'aria-live="polite"' in dashboard_response.text
+    assert 'aria-label="Decision table"' in dashboard_response.text
+    assert 'aria-pressed' in dashboard_response.text
     assert root_response.status_code == 200
     assert "Regret Console" in root_response.text
 

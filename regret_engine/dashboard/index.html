@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Guardian-AI Decision Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23081222'/%3E%3Crect x='10' y='10' width='44' height='44' rx='6' fill='%230f1d33' stroke='%2335c4f0'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial' font-size='18' font-weight='700' fill='%2335c4f0'%3ERX%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/dashboard/assets/styles.css" />
   </head>
   <body>
@@ -17,7 +18,7 @@
           </div>
         </div>
         <div class="status-strip">
-          <span id="connectionStatus" class="status-dot">Connecting</span>
+          <span id="connectionStatus" class="status-dot" aria-live="polite">Connecting</span>
           <span id="lastUpdated">Waiting for data</span>
         </div>
       </header>
@@ -105,14 +106,14 @@
                 <p>Live pricing records scored for regret and grounded evidence.</p>
               </div>
               <div class="filters" aria-label="Risk filters">
-                <button class="filter active" data-risk="">All</button>
-                <button class="filter" data-risk="LOW">Low</button>
-                <button class="filter" data-risk="MEDIUM">Medium</button>
-                <button class="filter" data-risk="HIGH">High</button>
+                <button class="filter active" data-risk="" aria-pressed="true">All</button>
+                <button class="filter" data-risk="LOW" aria-pressed="false">Low</button>
+                <button class="filter" data-risk="MEDIUM" aria-pressed="false">Medium</button>
+                <button class="filter" data-risk="HIGH" aria-pressed="false">High</button>
               </div>
             </div>
 
-            <div class="table-wrap">
+            <div class="table-wrap" tabindex="0" aria-label="Decision table">
               <table>
                 <thead>
                   <tr>
