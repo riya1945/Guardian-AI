@@ -13,7 +13,10 @@ from app.guardrail import check_decision, flag_decision
 
 conn = get_connection()
 
-INTEGRATION_URL = "http://localhost:9000/integrations/guardrail-decision"  # update to teammate's actual host/port
+INTEGRATION_URL = os.getenv(
+    "INTEGRATION_URL",
+    "http://127.0.0.1:8000/integrations/guardrail-decision",
+)
 
 def fmt(dt):
     return dt.strftime("%Y-%m-%d %H:%M:%S")

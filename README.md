@@ -104,7 +104,8 @@ decisionguard-dataguardrail/
 │   ├── guardrail.py           (detection logic)
 │   └── models.py              (Pydantic schemas for API responses)
 ├── requirements.txt
-├── .env                        (Exasol credentials — do NOT commit this)
+├── .env.example                (safe placeholders for local config)
+├── .env                        (local credentials — do NOT commit this)
 └── README.md
 ```
 
@@ -194,12 +195,13 @@ pip install -r requirements.txt
 
 ## Step 5 — Configure your `.env` file
 
-Create a file named `.env` in the project root:
+Copy `.env.example` to `.env` and fill in local values:
 ```
 EXASOL_HOST=localhost
 EXASOL_PORT=8563
 EXASOL_USER=sys
-EXASOL_PASSWORD=exasol
+EXASOL_PASSWORD=your_password
+INTEGRATION_URL=http://127.0.0.1:8000/integrations/guardrail-decision
 ```
 
 ---
