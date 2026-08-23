@@ -154,6 +154,8 @@ Main endpoints:
 GET  /health
 POST /calculate-regret
 POST /decision
+POST /integrations/guardrail-decision
+GET  /integrations/contracts
 GET  /decisions
 GET  /decisions/{decision_id}
 POST /explain/{decision_id}
@@ -162,6 +164,42 @@ GET  /analytics
 GET  /rag/evaluation
 GET  /dashboard
 ```
+
+## Team Integration
+
+Branch ownership:
+
+- `divija`: Data layer, simulator, live guardrail, and Exasol pricing decision tables.
+- `riya`: Regret engine and off-policy counterfactual scoring.
+- `ranbir`: RAG explain layer, grounded evidence, dashboard, and integration adapters.
+
+Ranbir branch accepts Divija's guardrail output directly:
+
+```text
+POST /integrations/guardrail-decision
+```
+
+Accepted payload shape:
+
+```json
+{
+  "decision_id": "uuid-or-trace-id",
+  "sku_id": "SKU-0001",
+  "event_time": "2026-08-23 15:30:00",
+  "old_price": 499.0,
+  "new_price": 699.0,
+  "reason_code": "ANOMALY_INJECTED_SPIKE",
+  "flagged": true,
+  "flag_reason": "Price exceeds competitor ceiling",
+  "confidence": 0.91,
+  "severity": 0.8,
+  "demand_signal": 0.82,
+  "competitor_price": 510.0,
+  "inventory_level": 120
+}
+```
+
+The adapter converts this into the richer regret/RAG decision shape, scores regret, retrieves policy evidence, stores the record, and makes it visible in `/dashboard`.
 
 Environment variables:
 

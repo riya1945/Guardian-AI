@@ -8,6 +8,11 @@ from fastapi.staticfiles import StaticFiles
 
 from regret_engine.src.config import load_settings
 from regret_engine.src.decision_store import DecisionStore
+from regret_engine.src.integration import (
+    GuardrailDecisionInput,
+    decision_from_guardrail,
+    guardrail_contract,
+)
 from regret_engine.src.persistence import build_decision_repository
 from regret_engine.src.rag_explainer import RagExplainer, evaluate_explainer
 from regret_engine.src.regret_service import RegretService
@@ -85,6 +90,19 @@ def create_decision(decision: Decision) -> DecisionRecord:
         return decision_store.upsert(decision, explain=True)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/integrations/guardrail-decision", response_model=DecisionRecord)
+def create_from_guardrail_decision(payload: GuardrailDecisionInput) -> DecisionRecord:
+    try:
+        return decision_store.upsert(decision_from_guardrail(payload), explain=True)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/integrations/contracts")
+def integration_contracts() -> dict[str, object]:
+    return guardrail_contract()
 
 
 @app.get("/decisions", response_model=list[DecisionRecord])

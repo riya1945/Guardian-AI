@@ -51,6 +51,39 @@ def test_decision_endpoint_returns_grounded_record() -> None:
     assert body["factors"]
 
 
+def test_guardrail_integration_accepts_divija_shape() -> None:
+    response = client.post(
+        "/integrations/guardrail-decision",
+        json={
+            "decision_id": "divija-guardrail-001",
+            "sku_id": "SKU-0007",
+            "event_time": "2026-08-23 15:30:00",
+            "old_price": 500.0,
+            "new_price": 760.0,
+            "reason_code": "ANOMALY_INJECTED_SPIKE",
+            "flagged": True,
+            "flag_reason": "Price is 49 percent above competitor price",
+            "confidence": 0.91,
+            "severity": 0.8,
+            "demand_signal": 0.82,
+            "competitor_price": 510.0,
+            "inventory_level": 120,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["decision_id"] == "divija-guardrail-001"
+    assert body["input"]["sku"] == "SKU-0007"
+    assert body["input"]["price"] == 760.0
+    assert body["explanation"]["status"] == "grounded"
+    assert body["explanation"]["supporting_evidence"]
+
+    contracts_response = client.get("/integrations/contracts")
+    assert contracts_response.status_code == 200
+    assert contracts_response.json()["endpoint"] == "POST /integrations/guardrail-decision"
+
+
 def test_decision_feed_analytics_and_dashboard_routes() -> None:
     decisions_response = client.get("/decisions?limit=5")
     analytics_response = client.get("/analytics")
