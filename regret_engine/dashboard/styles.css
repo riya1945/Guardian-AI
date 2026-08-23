@@ -39,6 +39,7 @@
   --gap-section: 32px;
   --gutter: 56px;
   --maxw: 1280px;
+  --metric-fit-min: 14px;
   --metric-value-max: 26px;
   --metric-value-min: 18px;
 }

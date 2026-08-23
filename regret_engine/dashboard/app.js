@@ -131,14 +131,15 @@ function fitMetricValues() {
 }
 
 function fitMetricValue(element) {
-  const minSize = parseFloat(cssVar("--metric-value-min")) || 18;
-  let size = parseFloat(getComputedStyle(element).fontSize);
+  const minSize = parseFloat(cssVar("--metric-fit-min")) || 14;
+  const step = 0.5;
+  let size;
 
   element.style.removeProperty("font-size");
   size = parseFloat(getComputedStyle(element).fontSize);
 
   while (size > minSize && element.scrollWidth > element.clientWidth) {
-    size -= 1;
+    size = Math.max(minSize, size - step);
     element.style.fontSize = `${size}px`;
   }
 }
