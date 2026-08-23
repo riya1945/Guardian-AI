@@ -15,7 +15,7 @@ conn = get_connection()
 
 INTEGRATION_URL = os.getenv(
     "INTEGRATION_URL",
-    "http://127.0.0.1:8000/integrations/guardrail-decision",
+    "https://guardian-ai-ragex.onrender.com/integrations/guardrail-decision",
 )
 
 def fmt(dt):

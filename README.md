@@ -201,7 +201,7 @@ EXASOL_HOST=localhost
 EXASOL_PORT=8563
 EXASOL_USER=sys
 EXASOL_PASSWORD=your_password
-INTEGRATION_URL=http://127.0.0.1:8000/integrations/guardrail-decision
+INTEGRATION_URL=https://guardian-ai-ragex.onrender.com/integrations/guardrail-decision
 ```
 
 ---
