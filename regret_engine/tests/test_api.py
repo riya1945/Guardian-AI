@@ -74,4 +74,4 @@ def test_explain_refuses_unrelated_question() -> None:
     assert response.status_code == 200
     explanation = response.json()["explanation"]
     assert explanation["status"] == "insufficient_evidence"
-    assert "Evidence unavailable" in explanation["summary"]
+    assert explanation["summary"] == "This information is not found in the uploaded documents"

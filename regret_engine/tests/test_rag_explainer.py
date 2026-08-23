@@ -42,12 +42,14 @@ def test_unrelated_question_returns_refusal() -> None:
 
     assert explanation.status == "insufficient_evidence"
     assert explanation.supporting_evidence == []
+    assert explanation.summary == "This information is not found in the uploaded documents"
 
 
 def test_rag_evaluation_is_deterministic() -> None:
     explainer = RagExplainer()
     result = evaluate_explainer(explainer)
 
-    assert result["synthetic_queries"] == 3
-    assert result["passed"] >= 2
-    assert result["failure_rate"] <= 0.34
+    assert result["evaluation_source"] == "gold_eval"
+    assert result["gold_queries"] == 30
+    assert result["passed"] >= 25
+    assert result["failure_rate"] <= 0.17

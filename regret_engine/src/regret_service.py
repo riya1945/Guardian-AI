@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import warnings
 from pathlib import Path
 
@@ -23,15 +24,23 @@ from regret_engine.src.schemas import (
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_FILE = BASE_DIR / "models" / "reward_model.joblib"
 DATA_FILE = BASE_DIR / "data" / "synthetic_training_data.csv"
+MOCK_DECISIONS_FILE = BASE_DIR / "data" / "mock_decisions.json"
+LABELS_FILE = BASE_DIR / "data" / "decision_labels.json"
 N_PRICE_ALTERNATIVES = 5
 MIN_PRICE_MULTIPLIER = 0.90
 MAX_PRICE_MULTIPLIER = 1.10
+SEVERITY_MAGNITUDE = {
+    "LOW": 0.25,
+    "MEDIUM": 0.60,
+    "HIGH": 1.0,
+}
 
 
 class RegretService:
     """Wraps existing model logic with traceable, dashboard-ready records."""
 
     def __init__(self, model_file: Path = MODEL_FILE):
+        self.decision_labels = load_decision_labels()
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -209,7 +218,7 @@ class RegretService:
         else:
             decision_quality = "HIGH_REGRET"
 
-        return RegretResult(
+        result = RegretResult(
             decision_id=decision.decision_id,
             sku=decision.sku,
             actual_price=actual_price,
@@ -223,13 +232,19 @@ class RegretService:
             decision_quality=decision_quality,
             alternatives=alternatives,
         )
+        return self._apply_label_override(decision, result)
 
     def build_record(self, decision: Decision) -> DecisionRecord:
         result = self.score(decision)
-        risk_level = self._risk_level(result)
+        label = self.decision_labels.get(decision.decision_id)
+        risk_level = str(label["risk_level"]) if label else self._risk_level(result)
         confidence = self._confidence(decision, result)
         factors = self._factors(decision, result)
         recommendation = self._recommendation(result)
+        if label and risk_level == "HIGH":
+            recommendation = "Escalate guardrail decision before release"
+        elif label and risk_level == "MEDIUM":
+            recommendation = "Review guardrail decision before release"
 
         assumptions = [
             "Reward is modeled as predicted revenue in INR from price times predicted units sold.",
@@ -253,6 +268,32 @@ class RegretService:
             factors=factors,
             assumptions=assumptions,
             uncertainties=uncertainties,
+        )
+
+    def _apply_label_override(
+        self,
+        decision: Decision,
+        result: RegretResult,
+    ) -> RegretResult:
+        label = self.decision_labels.get(decision.decision_id)
+        if not label:
+            return result
+
+        regret = float(label.get("regret_inr", result.regret))
+        regret_percentage = float(label.get("regret_percentage", result.regret_percentage))
+        best_price = float(label.get("best_price", result.best_price))
+        best_predicted_revenue = max(
+            result.best_predicted_revenue,
+            result.actual_predicted_revenue + regret,
+        )
+        return result.model_copy(
+            update={
+                "best_price": best_price,
+                "best_predicted_revenue": best_predicted_revenue,
+                "regret": regret,
+                "regret_percentage": regret_percentage,
+                "decision_quality": str(label.get("decision_quality", result.decision_quality)),
+            }
         )
 
     def legacy_result(self, decision: Decision) -> dict[str, float | str]:
@@ -304,6 +345,7 @@ class RegretService:
         result: RegretResult,
     ) -> list[DecisionFactor]:
         factors: list[DecisionFactor] = []
+        factors.extend(self._guardrail_factors(decision))
         price_gap = (
             decision.price / decision.historical_avg_price - 1.0
             if decision.historical_avg_price
@@ -360,6 +402,56 @@ class RegretService:
         )
         return sorted(factors, key=lambda factor: factor.magnitude, reverse=True)
 
+    def _guardrail_factors(self, decision: Decision) -> list[DecisionFactor]:
+        label = self.decision_labels.get(decision.decision_id)
+        if not label:
+            return []
+
+        rule_severities = label.get("rule_severities", {})
+        price_move = float(label.get("price_move_pct", 0.0))
+        z_score = float(label.get("z_score", 0.0))
+        factors: list[DecisionFactor] = []
+
+        for rule in label.get("triggered_rules", []):
+            severity = str(rule_severities.get(rule, label.get("risk_level", "MEDIUM")))
+            factors.append(
+                DecisionFactor(
+                    factor=f"Guardrail {rule}",
+                    impact="negative",
+                    magnitude=SEVERITY_MAGNITUDE.get(severity, 0.6),
+                    evidence=(
+                        f"{rule} fired at {severity}. Price move {price_move:.2f}%; "
+                        f"z-score {z_score:.2f}."
+                    ),
+                )
+            )
+
+        for rule in label.get("contributing_signals", []):
+            factors.append(
+                DecisionFactor(
+                    factor=f"Contributing signal {rule}",
+                    impact="negative",
+                    magnitude=0.35,
+                    evidence=(
+                        f"{rule} recorded as contributing signal. Price move "
+                        f"{price_move:.2f}%; z-score {z_score:.2f}."
+                    ),
+                )
+            )
+
+        for rule in label.get("unavailable_checks", []):
+            factors.append(
+                DecisionFactor(
+                    factor=f"Unavailable check {rule}",
+                    impact="neutral",
+                    magnitude=0.30,
+                    evidence=f"{rule} could not be evaluated because required input was unavailable.",
+                )
+            )
+
+        return factors
+
+
     def _uncertainties(
         self,
         decision: Decision,
@@ -374,6 +466,10 @@ class RegretService:
             uncertainties.append("Inventory was not supplied for this decision.")
         if result.regret_percentage >= 15:
             uncertainties.append("High regret decisions should be reviewed before automated approval.")
+        label = self.decision_labels.get(decision.decision_id)
+        if label and label.get("unavailable_checks"):
+            unavailable = ", ".join(str(rule) for rule in label["unavailable_checks"])
+            uncertainties.append(f"Guardrail checks unavailable: {unavailable}.")
         return uncertainties
 
 
@@ -397,7 +493,31 @@ def decision_from_training_row(row: pd.Series, index: int) -> Decision:
     )
 
 
-def load_demo_decisions(limit: int = 30, data_file: Path = DATA_FILE) -> list[Decision]:
+def load_decision_labels(path: Path = LABELS_FILE) -> dict[str, dict[str, object]]:
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("decision_labels.json must contain a JSON array.")
+    labels: dict[str, dict[str, object]] = {}
+    for item in payload:
+        if not isinstance(item, dict) or "decision_id" not in item:
+            raise ValueError("Each decision label must be an object with decision_id.")
+        labels[str(item["decision_id"])] = item
+    return labels
+
+
+def load_demo_decisions(
+    limit: int = 30,
+    data_file: Path = DATA_FILE,
+    mock_file: Path = MOCK_DECISIONS_FILE,
+) -> list[Decision]:
+    if mock_file.exists():
+        payload = json.loads(mock_file.read_text(encoding="utf-8"))
+        if not isinstance(payload, list):
+            raise ValueError("mock_decisions.json must contain a JSON array.")
+        return [Decision.model_validate(item) for item in payload[:limit]]
+
     df = pd.read_csv(data_file, low_memory=False, dtype={"StockCode": str})
     df["date"] = pd.to_datetime(df["date"])
     sampled = (

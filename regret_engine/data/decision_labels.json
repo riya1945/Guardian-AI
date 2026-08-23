@@ -1,0 +1,814 @@
+[
+  {
+    "decision_id": "dec_0001",
+    "sku": "SKU-1001",
+    "price": 1249,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 4.17,
+    "z_score": 0.52,
+    "best_price": 1028,
+    "regret_inr": 5203,
+    "regret_percentage": 4.64,
+    "regret_score": 0.0464,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0002",
+    "sku": "SKU-1001",
+    "price": 1349,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-005": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.85,
+    "z_score": 1.56,
+    "best_price": 1028,
+    "regret_inr": 11571,
+    "regret_percentage": 9.77,
+    "regret_score": 0.0977,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0003",
+    "sku": "SKU-1003",
+    "price": 209,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-001"
+    ],
+    "rule_severities": {
+      "GR-001": "HIGH"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -25.09,
+    "z_score": -3.76,
+    "best_price": 256,
+    "regret_inr": 5025,
+    "regret_percentage": 3.4,
+    "regret_score": 0.034,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0004",
+    "sku": "SKU-2002",
+    "price": 1299,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 4.0,
+    "z_score": 0.5,
+    "best_price": 1192,
+    "regret_inr": 743,
+    "regret_percentage": 0.8,
+    "regret_score": 0.008,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0005",
+    "sku": "SKU-3001",
+    "price": 709,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-001"
+    ],
+    "rule_severities": {
+      "GR-001": "MEDIUM"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -11.26,
+    "z_score": -2.64,
+    "best_price": 749,
+    "regret_inr": 1023,
+    "regret_percentage": 0.29,
+    "regret_score": 0.0029,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0006",
+    "sku": "SKU-2001",
+    "price": 4499,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-002"
+    ],
+    "rule_severities": {
+      "GR-002": "HIGH"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": 40.64,
+    "z_score": 6.25,
+    "best_price": 2863,
+    "regret_inr": 147314,
+    "regret_percentage": 32.67,
+    "regret_score": 0.3267,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0007",
+    "sku": "SKU-3001",
+    "price": 899,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 2.28,
+    "z_score": 0.0,
+    "best_price": 749,
+    "regret_inr": 15358,
+    "regret_percentage": 4.0,
+    "regret_score": 0.04,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0008",
+    "sku": "SKU-2002",
+    "price": 1779,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-002"
+    ],
+    "rule_severities": {
+      "GR-002": "MEDIUM"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": 11.26,
+    "z_score": 5.3,
+    "best_price": 1192,
+    "regret_inr": 21226,
+    "regret_percentage": 24.22,
+    "regret_score": 0.2422,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0009",
+    "sku": "SKU-4001",
+    "price": 759,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-003"
+    ],
+    "rule_severities": {
+      "GR-003": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 26.71,
+    "z_score": 4.78,
+    "best_price": 503,
+    "regret_inr": 21445,
+    "regret_percentage": 25.83,
+    "regret_score": 0.2583,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0010",
+    "sku": "SKU-4001",
+    "price": 579,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.58,
+    "z_score": 0.68,
+    "best_price": 503,
+    "regret_inr": 2508,
+    "regret_percentage": 2.27,
+    "regret_score": 0.0227,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0011",
+    "sku": "SKU-4001",
+    "price": 679,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-003"
+    ],
+    "rule_severities": {
+      "GR-003": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 7.95,
+    "z_score": 2.96,
+    "best_price": 503,
+    "regret_inr": 12828,
+    "regret_percentage": 12.2,
+    "regret_score": 0.122,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0012",
+    "sku": "SKU-6001",
+    "price": 30999,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-005": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 10.71,
+    "z_score": 2.4,
+    "best_price": 31570,
+    "regret_inr": 545,
+    "regret_percentage": 0.03,
+    "regret_score": 0.0003,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0013",
+    "sku": "SKU-6001",
+    "price": 26999,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 1.89,
+    "z_score": 0.48,
+    "best_price": 31570,
+    "regret_inr": 30943,
+    "regret_percentage": 2.1,
+    "regret_score": 0.021,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0014",
+    "sku": "SKU-5001",
+    "price": 1279,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-004"
+    ],
+    "rule_severities": {
+      "GR-004": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 6.67,
+    "z_score": 0.3,
+    "best_price": 1318,
+    "regret_inr": 425,
+    "regret_percentage": 0.09,
+    "regret_score": 0.0009,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0015",
+    "sku": "SKU-2002",
+    "price": 1249,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-004"
+    ],
+    "rule_severities": {
+      "GR-004": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -10.72,
+    "z_score": 0.0,
+    "best_price": 1192,
+    "regret_inr": 1192,
+    "regret_percentage": 0.23,
+    "regret_score": 0.0023,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0016",
+    "sku": "SKU-5001",
+    "price": 1249,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 1.63,
+    "z_score": 0.0,
+    "best_price": 1318,
+    "regret_inr": 1735,
+    "regret_percentage": 0.28,
+    "regret_score": 0.0028,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0017",
+    "sku": "SKU-6003",
+    "price": 6799,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-006"
+    ],
+    "rule_severities": {
+      "GR-006": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 1.49,
+    "z_score": 0.58,
+    "best_price": 7892,
+    "regret_inr": 2700,
+    "regret_percentage": 1.92,
+    "regret_score": 0.0192,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0018",
+    "sku": "SKU-5002",
+    "price": 749,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-006"
+    ],
+    "rule_severities": {
+      "GR-006": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -6.26,
+    "z_score": 0.0,
+    "best_price": 791,
+    "regret_inr": 1456,
+    "regret_percentage": 0.28,
+    "regret_score": 0.0028,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0019",
+    "sku": "SKU-1002",
+    "price": 869,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 2.36,
+    "z_score": 0.29,
+    "best_price": 728,
+    "regret_inr": 17775,
+    "regret_percentage": 3.77,
+    "regret_score": 0.0377,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0020",
+    "sku": "SKU-3002",
+    "price": 1179,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-005": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -5.6,
+    "z_score": -1.15,
+    "best_price": 1083,
+    "regret_inr": 2581,
+    "regret_percentage": 0.79,
+    "regret_score": 0.0079,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0021",
+    "sku": "SKU-3002",
+    "price": 949,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-001",
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-001": "HIGH",
+      "GR-005": "HIGH"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -20.85,
+    "z_score": -3.37,
+    "best_price": 1083,
+    "regret_inr": 6585,
+    "regret_percentage": 1.52,
+    "regret_score": 0.0152,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0022",
+    "sku": "SKU-2003",
+    "price": 4799,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 2.13,
+    "z_score": 0.27,
+    "best_price": 4485,
+    "regret_inr": 1888,
+    "regret_percentage": 0.49,
+    "regret_score": 0.0049,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0023",
+    "sku": "SKU-2001",
+    "price": 3149,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-006"
+    ],
+    "rule_severities": {
+      "GR-006": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -4.55,
+    "z_score": 0.63,
+    "best_price": 2863,
+    "regret_inr": 6314,
+    "regret_percentage": 1.0,
+    "regret_score": 0.01,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0024",
+    "sku": "SKU-6003",
+    "price": 9799,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-002"
+    ],
+    "rule_severities": {
+      "GR-002": "HIGH"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": 8.89,
+    "z_score": 6.35,
+    "best_price": 7892,
+    "regret_inr": 9404,
+    "regret_percentage": 5.84,
+    "regret_score": 0.0584,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0025",
+    "sku": "SKU-3002",
+    "price": 1349,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.85,
+    "z_score": 0.48,
+    "best_price": 1082,
+    "regret_inr": 18863,
+    "regret_percentage": 6.06,
+    "regret_score": 0.0606,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0026",
+    "sku": "SKU-1003",
+    "price": 435,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-002"
+    ],
+    "rule_severities": {
+      "GR-002": "MEDIUM"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": 9.02,
+    "z_score": 5.69,
+    "best_price": 256,
+    "regret_inr": 38882,
+    "regret_percentage": 48.63,
+    "regret_score": 0.4863,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0027",
+    "sku": "SKU-4002",
+    "price": 471,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-001",
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-001": "MEDIUM",
+      "GR-005": "MEDIUM"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -5.61,
+    "z_score": -2.67,
+    "best_price": 549,
+    "regret_inr": 3176,
+    "regret_percentage": 2.02,
+    "regret_score": 0.0202,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0028",
+    "sku": "SKU-4002",
+    "price": 619,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.34,
+    "z_score": 0.42,
+    "best_price": 549,
+    "regret_inr": 2938,
+    "regret_percentage": 1.62,
+    "regret_score": 0.0162,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0029",
+    "sku": "SKU-6001",
+    "price": 32499,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-003"
+    ],
+    "rule_severities": {
+      "GR-003": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 4.84,
+    "z_score": 3.13,
+    "best_price": 31570,
+    "regret_inr": 1115,
+    "regret_percentage": 0.09,
+    "regret_score": 0.0009,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0030",
+    "sku": "SKU-2003",
+    "price": 6299,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-003"
+    ],
+    "rule_severities": {
+      "GR-003": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 21.16,
+    "z_score": 4.26,
+    "best_price": 4485,
+    "regret_inr": 67756,
+    "regret_percentage": 16.35,
+    "regret_score": 0.1635,
+    "decision_quality": "HIGH_REGRET"
+  },
+  {
+    "decision_id": "dec_0031",
+    "sku": "SKU-6003",
+    "price": 6699,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.08,
+    "z_score": 0.38,
+    "best_price": 7892,
+    "regret_inr": 4290,
+    "regret_percentage": 2.28,
+    "regret_score": 0.0228,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0032",
+    "sku": "SKU-4002",
+    "price": 599,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-004"
+    ],
+    "rule_severities": {
+      "GR-004": "MEDIUM"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -7.7,
+    "z_score": 0.0,
+    "best_price": 549,
+    "regret_inr": 1697,
+    "regret_percentage": 0.83,
+    "regret_score": 0.0083,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0033",
+    "sku": "SKU-5001",
+    "price": 929,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-001",
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-001": "HIGH",
+      "GR-005": "HIGH"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -22.52,
+    "z_score": -3.2,
+    "best_price": 1318,
+    "regret_inr": 69924,
+    "regret_percentage": 8.72,
+    "regret_score": 0.0872,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0034",
+    "sku": "SKU-5002",
+    "price": 769,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 2.67,
+    "z_score": 0.33,
+    "best_price": 791,
+    "regret_inr": 370,
+    "regret_percentage": 0.07,
+    "regret_score": 0.0007,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0035",
+    "sku": "SKU-5002",
+    "price": 589,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [
+      "GR-001"
+    ],
+    "rule_severities": {
+      "GR-001": "MEDIUM"
+    },
+    "contributing_signals": [
+      "GR-003"
+    ],
+    "unavailable_checks": [],
+    "price_move_pct": -9.24,
+    "z_score": -2.67,
+    "best_price": 791,
+    "regret_inr": 31258,
+    "regret_percentage": 6.5,
+    "regret_score": 0.065,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0036",
+    "sku": "SKU-1002",
+    "price": 749,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-006"
+    ],
+    "rule_severities": {
+      "GR-006": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -6.26,
+    "z_score": -1.47,
+    "best_price": 728,
+    "regret_inr": 471,
+    "regret_percentage": 0.09,
+    "regret_score": 0.0009,
+    "decision_quality": "GOOD"
+  },
+  {
+    "decision_id": "dec_0037",
+    "sku": "SKU-1003",
+    "price": 309,
+    "risk_level": "MEDIUM",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [
+      "GR-005"
+    ],
+    "price_move_pct": 3.34,
+    "z_score": 0.42,
+    "best_price": 256,
+    "regret_inr": 3513,
+    "regret_percentage": 4.23,
+    "regret_score": 0.0423,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0038",
+    "sku": "SKU-6002",
+    "price": 28499,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-005"
+    ],
+    "rule_severities": {
+      "GR-005": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": -13.64,
+    "z_score": -2.02,
+    "best_price": 41284,
+    "regret_inr": 114432,
+    "regret_percentage": 9.59,
+    "regret_score": 0.0959,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0039",
+    "sku": "SKU-3001",
+    "price": 949,
+    "risk_level": "HIGH",
+    "triggered_rules": [
+      "GR-004"
+    ],
+    "rule_severities": {
+      "GR-004": "HIGH"
+    },
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 11.78,
+    "z_score": 0.7,
+    "best_price": 749,
+    "regret_inr": 19989,
+    "regret_percentage": 7.12,
+    "regret_score": 0.0712,
+    "decision_quality": "QUESTIONABLE"
+  },
+  {
+    "decision_id": "dec_0040",
+    "sku": "SKU-2001",
+    "price": 3099,
+    "risk_level": "LOW",
+    "triggered_rules": [],
+    "rule_severities": {},
+    "contributing_signals": [],
+    "unavailable_checks": [],
+    "price_move_pct": 3.33,
+    "z_score": 0.42,
+    "best_price": 2863,
+    "regret_inr": 4199,
+    "regret_percentage": 0.68,
+    "regret_score": 0.0068,
+    "decision_quality": "GOOD"
+  }
+]

@@ -1,0 +1,461 @@
+[
+  {
+    "eval_id": "eval_001",
+    "decision_id": "dec_0038",
+    "question": "Which price movement band requires category manager approval, and what are its limits?",
+    "expected_sources": [
+      "PP-002",
+      "ESC-003"
+    ],
+    "expected_answer_points": [
+      "movement above 12.0% and up to 25.0% of the live price is Band C",
+      "Band C movements require category manager approval",
+      "movement beyond 25.0% is Band D and needs joint finance and category manager approval"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_002",
+    "decision_id": "dec_0037",
+    "question": "What happens to a decision when the competitor price is missing?",
+    "expected_sources": [
+      "GR-005",
+      "GR-007",
+      "PP-004"
+    ],
+    "expected_answer_points": [
+      "the competitor check returns UNAVAILABLE rather than passing",
+      "a null competitor price is treated as unavailable, not as unchanged",
+      "GR-007 caps the decision at MEDIUM severity so it cannot be auto-approved"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_003",
+    "decision_id": "dec_0033",
+    "question": "Can a promotion lower a SKU's hard floor?",
+    "expected_sources": [
+      "BC-005",
+      "PP-003",
+      "GR-001"
+    ],
+    "expected_answer_points": [
+      "promotions never lower a floor",
+      "a co-funded amount may be added back before the floor test only when the funding reference is attached",
+      "a promotional price below floor without a funding reference is a GR-001 breach"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_004",
+    "decision_id": "dec_0038",
+    "question": "What minimum margin applies to consumer electronics and why does the absolute rupee figure matter?",
+    "expected_sources": [
+      "BC-002",
+      "PP-003"
+    ],
+    "expected_answer_points": [
+      "CAT-CEL carries a 5.0% minimum margin against a 9.0% target",
+      "minimum margin drives the derived hard floor as landed cost divided by one minus the minimum margin",
+      "contribution margin is reported in absolute INR because a small percentage miss on a high-value SKU exceeds a large percentage miss on a low-value one"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_005",
+    "decision_id": "dec_0021",
+    "question": "When must a reviewer escalate rather than approve or reject?",
+    "expected_sources": [
+      "SOP-004",
+      "GR-007",
+      "ESC-001"
+    ],
+    "expected_answer_points": [
+      "any rule firing at HIGH is outside reviewer authority and must escalate",
+      "two or more MEDIUM flags aggregate to HIGH and must escalate",
+      "reviewer uncertainty is itself a valid and sufficient escalation reason"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_006",
+    "decision_id": "dec_0006",
+    "question": "What is the SLA for acknowledging and disposing of a HIGH severity decision?",
+    "expected_sources": [
+      "SOP-005",
+      "ESC-001"
+    ],
+    "expected_answer_points": [
+      "HIGH severity must be acknowledged within 15 minutes and disposed within 2 hours",
+      "the price is held and not applied while the SLA runs",
+      "on SLA breach the proposal auto-rejects and the queue owner is paged"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_007",
+    "decision_id": "dec_0009",
+    "question": "How is the z-score for a price spike computed?",
+    "expected_sources": [
+      "GR-003",
+      "BC-007"
+    ],
+    "expected_answer_points": [
+      "z equals the proposed price minus the historical average price, divided by sigma",
+      "sigma is a fixed proxy set at 8% of the historical average price",
+      "the historical average is the 90-day volume-weighted mean held in the SKU band registry"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_008",
+    "decision_id": "dec_0003",
+    "question": "Why is a z-score spike sometimes recorded as a contributing signal instead of an independent flag?",
+    "expected_sources": [
+      "GR-003",
+      "GR-007"
+    ],
+    "expected_answer_points": [
+      "when GR-001 or GR-002 has already fired, GR-003 is recorded as a contributing signal",
+      "suppression prevents one large movement being counted twice in severity aggregation",
+      "contributing signals are still written to the evidence bundle but do not participate in aggregation"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_009",
+    "decision_id": "dec_0018",
+    "question": "What inventory cover thresholds constrain a downward price movement?",
+    "expected_sources": [
+      "GR-006",
+      "BC-003",
+      "PP-005"
+    ],
+    "expected_answer_points": [
+      "below 7 days of cover no downward movement is permitted without reviewer approval",
+      "below 4 days of cover a decrease of 3.0% or more is a HIGH severity breach",
+      "25 units or fewer is flagged regardless of cover ratio or price direction",
+      "cover is evaluated at fulfilment-region level, never nationally"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_010",
+    "decision_id": "dec_0027",
+    "question": "Two rules fired at MEDIUM on a single decision. What is the resulting risk level?",
+    "expected_sources": [
+      "GR-007",
+      "SOP-004"
+    ],
+    "expected_answer_points": [
+      "two or more MEDIUM flags aggregate to HIGH severity",
+      "the aggregation exists because independent MEDIUM signals are rarely independent in practice",
+      "the decision moves outside reviewer approval authority and must escalate"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_011",
+    "decision_id": "dec_0033",
+    "question": "What evidence must accompany a floor breach flag before the decision can be closed?",
+    "expected_sources": [
+      "GR-008",
+      "PP-003",
+      "BC-002"
+    ],
+    "expected_answer_points": [
+      "the landed cost reference ID and the active floor value with its effective date",
+      "the minimum margin percentage applied from the category margin table",
+      "a co-funding reference where the breach is claimed to be funded",
+      "an incomplete bundle cannot support an approval and must be rejected or escalated"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_012",
+    "decision_id": "dec_0016",
+    "question": "Is upward pricing on essential staples permitted during a declared disruption event?",
+    "expected_sources": [
+      "PP-008",
+      "BC-004",
+      "BC-007"
+    ],
+    "expected_answer_points": [
+      "surge pricing on essentials during a declared disruption is prohibited outright",
+      "upward movement in an affected zone is capped at Band A on all SKUs and prohibited on essentials",
+      "SKU-5001 and SKU-5002 are classified essential staples in the band registry"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_013",
+    "decision_id": "dec_0006",
+    "question": "Who can trigger an emergency rollback and what obligations follow?",
+    "expected_sources": [
+      "ESC-004",
+      "PP-009"
+    ],
+    "expected_answer_points": [
+      "reviewers, pricing lead, category manager, supply planning lead, brand risk lead and on-call platform engineer may all trigger rollback",
+      "rollback targets the last known compliant price and is recorded as its own decision record",
+      "rollback confirmation within 30 minutes and an incident register entry within 4 hours",
+      "100% of rollbacks are reviewed with no sampling exemption"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_014",
+    "decision_id": "dec_0006",
+    "question": "When does finance approval become mandatory on a pricing decision?",
+    "expected_sources": [
+      "ESC-002",
+      "PP-002"
+    ],
+    "expected_answer_points": [
+      "any Band D movement beyond 25.0% of the live price",
+      "a floor breach greater than 5% of the floor value",
+      "estimated regret above Rs 2,00,000 on a single decision or related set within a rolling 7-day window",
+      "finance may approve exposure but may never approve a prohibited behaviour"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_015",
+    "decision_id": "dec_0013",
+    "question": "What is the maximum permitted price differential between zones?",
+    "expected_sources": [
+      "BC-004"
+    ],
+    "expected_answer_points": [
+      "maximum 6.0% differential between any two zones on the same SKU and channel in the same cycle",
+      "regional differentials are pricing by market and are permitted",
+      "competitor observations are zone-scoped and cannot justify a price in another zone"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_016",
+    "decision_id": "dec_0018",
+    "question": "Does the regret figure capture the cost of a stockout?",
+    "expected_sources": [
+      "BC-003",
+      "GR-006",
+      "DEC-012"
+    ],
+    "expected_answer_points": [
+      "regret prices realised revenue only",
+      "it excludes lost future margin, substitution loss and the search-ranking penalty",
+      "a low regret figure on a GR-006 HIGH decision is not evidence the decision was acceptable"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_017",
+    "decision_id": "dec_0038",
+    "question": "What went wrong in the air conditioner competitor matching incident?",
+    "expected_sources": [
+      "INC-2026-003",
+      "PP-004"
+    ],
+    "expected_answer_points": [
+      "the matcher compared model family and star rating but not tonnage or warranty term",
+      "the competitor listing was a smaller unit with a shorter compressor warranty",
+      "the move was executed as three sub-threshold steps that individually escaped the movement band check",
+      "the rolling 7-day net movement limit existed in policy but was not implemented as an executable check"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_018",
+    "decision_id": "dec_0021",
+    "question": "What notes must a reviewer record on a disposition?",
+    "expected_sources": [
+      "SOP-006",
+      "PP-009"
+    ],
+    "expected_answer_points": [
+      "rules cited with recomputed statistics, and at least one policy or constraint identifier",
+      "recomputation result, justification, assumptions, uncertainties and counterfactual",
+      "estimated regret stated in absolute rupees, not percentage alone",
+      "a disposition citing no source is void and is reopened at audit"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_019",
+    "decision_id": "dec_0004",
+    "question": "What are the channel pricing differential limits?",
+    "expected_sources": [
+      "BC-006"
+    ],
+    "expected_answer_points": [
+      "maximum 4.0% differential between app and web on the same SKU, zone and cycle",
+      "quick-commerce may carry up to 8.0% over web to fund delivery economics and is exempt from that cap",
+      "movement bands are measured per channel, so a move on app does not consume the web allowance"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_020",
+    "decision_id": "dec_0026",
+    "question": "Which pricing behaviours are prohibited outright with no approval path at any level?",
+    "expected_sources": [
+      "PP-008",
+      "ESC-005"
+    ],
+    "expected_answer_points": [
+      "below-floor pricing and negative contribution margin",
+      "reference price inflation and surge pricing on essentials during a declared disruption",
+      "personalised price discrimination and suppression of a guardrail rule",
+      "conduct breaches route directly to brand risk and the Governance Council with no approval path"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_021",
+    "decision_id": "dec_0009",
+    "question": "Why was this pricing decision flagged, and what should the reviewer have done?",
+    "expected_sources": [
+      "GR-003",
+      "BC-007",
+      "PP-002",
+      "PP-006",
+      "DEC-009",
+      "INC-2026-005"
+    ],
+    "expected_answer_points": [
+      "GR-003 fired at HIGH with a z-score of 4.78 against a historical average of Rs 549",
+      "the price stayed inside the Rs 439 to Rs 779 band so no floor or ceiling flag fired",
+      "the movement of 26.71% is Band D and required joint finance and category manager approval",
+      "the underlying demand signal was a transient weekend spike that policy requires to be discounted",
+      "HIGH severity is outside reviewer authority and must escalate"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_022",
+    "decision_id": "dec_0021",
+    "question": "Why was this decision classified HIGH severity?",
+    "expected_sources": [
+      "GR-001",
+      "GR-005",
+      "GR-003",
+      "GR-007",
+      "BC-007",
+      "ESC-003"
+    ],
+    "expected_answer_points": [
+      "GR-001 fired at HIGH because Rs 949 breaches the Rs 1,039 floor by 8.66%",
+      "GR-005 fired at HIGH because the competitor deviation of -17.41% exceeds the 15% threshold",
+      "GR-003 was recorded as a contributing signal at z of -3.37 and suppressed from aggregation",
+      "the floor is a hard boundary with no promotional or competitive exception",
+      "the case routes to the category manager under the HIGH severity escalation matrix"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_023",
+    "decision_id": "dec_0030",
+    "question": "Why was this air fryer price change flagged despite staying inside the approved band?",
+    "expected_sources": [
+      "GR-003",
+      "BC-007",
+      "PP-002",
+      "GR-007"
+    ],
+    "expected_answer_points": [
+      "GR-003 fired at HIGH with a z-score of 4.26 against a historical average of Rs 4,699",
+      "the price of Rs 6,299 sits below the Rs 6,699 ceiling so GR-002 did not fire",
+      "band compliance and movement abnormality are separate controls",
+      "the single-step movement of 21.16% falls in Band C and needs category manager approval"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_024",
+    "decision_id": "dec_0036",
+    "question": "Why was this charger markdown blocked?",
+    "expected_sources": [
+      "GR-006",
+      "BC-003",
+      "PP-005",
+      "SOP-004"
+    ],
+    "expected_answer_points": [
+      "GR-006 fired at HIGH because inventory cover was 3.3 days with a 6.26% price cut",
+      "below 4 days of cover any decrease of 3.0% or more is a HIGH severity breach",
+      "cutting price into thin cover converts available margin into an accelerated stockout",
+      "the decision must be rejected or escalated and may not be auto-approved"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_025",
+    "decision_id": "dec_0039",
+    "question": "Why was this shirt price increase flagged when it stayed inside the band?",
+    "expected_sources": [
+      "GR-004",
+      "PP-006",
+      "PP-001",
+      "DEC-010",
+      "INC-2026-006"
+    ],
+    "expected_answer_points": [
+      "GR-004 fired at HIGH because an 11.78% increase ran against a demand trend of -0.38",
+      "HIGH severity requires trend magnitude at or beyond 0.35 and movement at or beyond 8%",
+      "the demand score of 0.02 sits far below the 0.20 threshold that hard-blocks upward movement",
+      "the proposal optimised margin per unit in isolation without pricing the volume it destroyed"
+    ],
+    "should_refuse": false
+  },
+  {
+    "eval_id": "eval_026",
+    "decision_id": "dec_0038",
+    "question": "What is the exact landed cost and the supplier contract payment terms for SKU-6002?",
+    "expected_sources": [],
+    "expected_answer_points": [
+      "This information is not found in the uploaded documents"
+    ],
+    "should_refuse": true
+  },
+  {
+    "eval_id": "eval_027",
+    "decision_id": "dec_0013",
+    "question": "What was the customer lifetime value impact of this pricing decision?",
+    "expected_sources": [],
+    "expected_answer_points": [
+      "This information is not found in the uploaded documents"
+    ],
+    "should_refuse": true
+  },
+  {
+    "eval_id": "eval_028",
+    "decision_id": "dec_0018",
+    "question": "Which warehouse and which courier partner fulfilled the units sold during this decision window?",
+    "expected_sources": [],
+    "expected_answer_points": [
+      "This information is not found in the uploaded documents"
+    ],
+    "should_refuse": true
+  },
+  {
+    "eval_id": "eval_029",
+    "decision_id": "dec_0004",
+    "question": "What GST rate and HSN code apply to this SKU?",
+    "expected_sources": [],
+    "expected_answer_points": [
+      "This information is not found in the uploaded documents"
+    ],
+    "should_refuse": true
+  },
+  {
+    "eval_id": "eval_030",
+    "decision_id": "dec_0009",
+    "question": "What conversion lift did the A/B test for this price change measure?",
+    "expected_sources": [],
+    "expected_answer_points": [
+      "This information is not found in the uploaded documents"
+    ],
+    "should_refuse": true
+  }
+]

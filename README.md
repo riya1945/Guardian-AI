@@ -70,7 +70,21 @@ When Exasol credentials are not configured, the app falls back to memory for loc
 
 ## RAG Explain Layer
 
-Knowledge files live under `regret_engine/knowledge/`. They are synthetic project docs for local development and are clearly labeled as demo knowledge.
+Knowledge files live under `regret_engine/knowledge/`. The active corpus includes pricing policy, guardrail rules, incident reports, review SOP, escalation rules, business constraints, and good/bad decision examples. Demo decisions and gold RAG evaluation cases live under `regret_engine/data/`.
+
+Fixture layout:
+
+- `regret_engine/knowledge/pricing_policy.md`
+- `regret_engine/knowledge/guardrail_rules.md`
+- `regret_engine/knowledge/incident_reports.md`
+- `regret_engine/knowledge/review_sop.md`
+- `regret_engine/knowledge/escalation_rules.md`
+- `regret_engine/knowledge/business_constraints.md`
+- `regret_engine/knowledge/decision_examples.md`
+- `regret_engine/data/mock_decisions.json`
+- `regret_engine/data/decision_labels.json`
+- `regret_engine/data/gold_eval.json`
+- `contracts/decision_contract.md`
 
 The RAG pipeline:
 
@@ -86,10 +100,10 @@ The explanation generator uses `LLM_CHAIN`, defaulting to:
 groq,gemini,deterministic
 ```
 
-Groq and Gemini are used only when keys are present. Deterministic fallback keeps the demo working offline. The generator cites only retrieved repository evidence. If retrieval fails, it returns:
+Groq and Gemini are used only when keys are present. Deterministic fallback keeps the demo working offline. The generator cites only retrieved repository evidence. If retrieval fails or the question asks for unsupported fields, it returns:
 
 ```text
-Evidence unavailable / insufficient to provide a grounded explanation.
+This information is not found in the uploaded documents
 ```
 
 No paid LLM key is required.
@@ -215,9 +229,10 @@ Tests cover:
 
 - existing regret endpoint compatibility
 - structured decision records
+- provided corpus and JSON fixtures
 - RAG retrieval
 - grounded explanation behavior
-- refusal on unrelated queries
+- gold-set RAG evaluation and refusal behavior
 - API analytics and dashboard route
 
 ## Limitations

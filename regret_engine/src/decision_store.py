@@ -29,14 +29,14 @@ class DecisionRepository(Protocol):
 
 
 class DecisionStore:
-    """Decision feed backed by Postgres when configured, memory otherwise."""
+    """Decision feed backed by Exasol when configured, memory otherwise."""
 
     def __init__(
         self,
         regret_service: RegretService,
         explainer: RagExplainer,
         repository: DecisionRepository,
-        demo_limit: int = 30,
+        demo_limit: int = 40,
     ):
         self.regret_service = regret_service
         self.explainer = explainer

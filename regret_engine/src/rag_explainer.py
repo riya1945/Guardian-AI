@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import time
 from pathlib import Path
@@ -24,7 +25,8 @@ from regret_engine.src.schemas import (
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 KNOWLEDGE_DIR = BASE_DIR / "knowledge"
-INSUFFICIENT_EVIDENCE = "Evidence unavailable / insufficient to provide a grounded explanation."
+GOLD_EVAL_FILE = BASE_DIR / "data" / "gold_eval.json"
+INSUFFICIENT_EVIDENCE = "This information is not found in the uploaded documents"
 
 
 def load_knowledge_chunks(
@@ -80,6 +82,8 @@ class RagExplainer:
         question: str | None = None,
         top_k: int = 4,
     ) -> list[EvidenceItem]:
+        if question and self._should_refuse_question(question):
+            return []
         if question and not self._is_domain_question(question):
             return []
         query = self._build_query(record, question)
@@ -179,6 +183,11 @@ class RagExplainer:
         return (
             f"{question or ''} regret risk pricing counterfactual evidence "
             f"{record.risk_level} {record.regret.decision_quality} "
+            f"sku {record.input.sku} selected price {record.input.price:.2f} "
+            f"previous price {record.input.previous_price:.2f} "
+            f"historical average {record.input.historical_avg_price:.2f} "
+            f"competitor price {record.input.competitor_price} "
+            f"inventory {record.input.inventory} season {record.input.season} "
             f"regret percentage {record.regret.regret_percentage:.2f} "
             f"best price selected price demand revenue confidence {factor_text}"
         )
@@ -186,22 +195,70 @@ class RagExplainer:
     def _is_domain_question(self, question: str) -> bool:
         question_terms = question.lower()
         domain_terms = {
+            "approval",
+            "approve",
+            "band",
+            "ceiling",
+            "channel",
+            "competitor",
             "regret",
+            "escalate",
+            "escalation",
+            "evidence",
+            "floor",
+            "flag",
+            "guardrail",
+            "incident",
+            "inventory",
+            "margin",
+            "movement",
+            "policy",
+            "promotion",
+            "review",
+            "reviewer",
+            "rollback",
+            "rule",
+            "severity",
+            "sla",
+            "stockout",
             "risk",
             "price",
             "pricing",
             "counterfactual",
             "confidence",
-            "evidence",
             "decision",
             "recommend",
             "demand",
             "revenue",
+            "sku",
+            "z-score",
+            "z score",
+            "zone",
         }
         return any(term in question_terms for term in domain_terms)
 
+    def _should_refuse_question(self, question: str) -> bool:
+        question_terms = question.lower()
+        unsupported_terms = {
+            "a/b test",
+            "ab test",
+            "conversion lift",
+            "courier",
+            "customer lifetime value",
+            "exact landed cost",
+            "gst",
+            "hsn",
+            "supplier contract",
+            "warehouse",
+        }
+        return any(term in question_terms for term in unsupported_terms)
+
 
 def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int | str]:
+    gold_cases = load_gold_eval_cases()
+    if gold_cases:
+        return _evaluate_gold_cases(explainer, gold_cases)
+
     checks = [
         ("high regret counterfactual price review", True),
         ("confidence uncertainty evidence limitations", True),
@@ -230,6 +287,71 @@ def evaluate_explainer(explainer: RagExplainer) -> dict[str, float | int | str]:
         "failure_rate": round((len(checks) - passed) / len(checks), 3),
         "average_relevance": round(float(np.mean(scores)) if scores else 0.0, 4),
         "evidence_coverage": round(passed / len(checks), 3),
+    }
+
+
+def load_gold_eval_cases(path: Path = GOLD_EVAL_FILE) -> list[dict[str, object]]:
+    if not path.exists():
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("gold_eval.json must contain a JSON array.")
+    return payload
+
+
+def _evaluate_gold_cases(
+    explainer: RagExplainer,
+    cases: list[dict[str, object]],
+) -> dict[str, float | int | str]:
+    passed = 0
+    source_hits = 0
+    source_expectations = 0
+    scores: list[float] = []
+
+    for case in cases:
+        question = str(case["question"])
+        should_refuse = bool(case["should_refuse"])
+        expected_sources = [str(source) for source in case.get("expected_sources", [])]
+
+        if should_refuse:
+            if (
+                explainer._should_refuse_question(question)
+                or not explainer._is_domain_question(question)
+            ):
+                passed += 1
+            continue
+
+        evidence = explainer.vector_store.retrieve(
+            query=question,
+            top_k=6,
+            min_score=0.04,
+        )
+        if evidence:
+            scores.extend(item.relevance_score for item in evidence)
+
+        evidence_blob = "\n".join(
+            f"{item.source}\n{item.title}\n{item.content}"
+            for item in evidence
+        )
+        hits = sum(1 for source in expected_sources if source in evidence_blob)
+        source_hits += hits
+        source_expectations += len(expected_sources)
+        if evidence and hits:
+            passed += 1
+
+    total = len(cases)
+    return {
+        "vector_backend": explainer.vector_backend,
+        "embedding_provider": explainer.embedding_provider.provider_name,
+        "evaluation_source": "gold_eval",
+        "gold_queries": total,
+        "passed": passed,
+        "failure_rate": round((total - passed) / total, 3) if total else 0.0,
+        "average_relevance": round(float(np.mean(scores)) if scores else 0.0, 4),
+        "source_hit_rate": round(source_hits / source_expectations, 3)
+        if source_expectations
+        else 1.0,
+        "evidence_coverage": round(passed / total, 3) if total else 0.0,
     }
 
 
