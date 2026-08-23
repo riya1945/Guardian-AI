@@ -2,6 +2,47 @@
 
 Guardian-AI, also called RaGeX in the demo, is an AI pricing guardrail system. It combines a live pricing simulator, Exasol-backed guardrail checks, a regret engine, grounded RAG explanations, and a dashboard.
 
+## Final Submission
+
+This repository is the public submission package. It contains source code, sample data, Exasol schema, deployment config, pitch deck, screenshots, and a run guide.
+
+Submission materials:
+
+- Source code: top-level simulator/guardrail files and `regret_engine/`
+- Pitch deck: `submission/pitch/RaGeX_Pricing_Guardrail_Pitch.pptx`
+- Pitch deck PDF: `submission/pitch/RaGeX_Pricing_Guardrail_Pitch.pdf`
+- Screenshots: `submission/screenshots/`
+- Sample integration payload: `submission/samples/guardrail_decision_payload.json`
+- Configuration notes: `submission/configuration-notes.md`
+- Demo video: link will be added here when final recording is available
+
+## Problem
+
+Automated pricing systems can make high-impact decisions faster than human teams can review them. A bad model release, stale competitor signal, or data pipeline bug can push prices below cost, above competitor ceilings, or into sudden drift. Existing dashboards usually show outcomes after damage has happened; they do not combine live guardrails, regret scoring, and evidence-backed explanation in one review workflow.
+
+## Solution
+
+Guardian-AI watches pricing decisions as they happen. It accepts simulator or live guardrail decisions, stores them in Exasol, scores counterfactual regret in INR, retrieves relevant policy and incident evidence, generates grounded explanations, and displays everything in a live dashboard for review.
+
+Core workflow:
+
+```text
+Pricing decision -> Exasol persistence -> Guardrail status -> Regret engine -> RAG evidence -> Dashboard review
+```
+
+## How Exasol Is Used
+
+Exasol is the analytical and persistence layer for the demo.
+
+- Exasol stores seeded historical pricing data used by the simulator and guardrail.
+- Exasol stores live pricing decisions, guardrail status, regret output, and explanation payloads.
+- Exasol stores RAG knowledge chunks and serialized 768-dimensional embeddings.
+- PyExasol powers schema setup, seed loading, live reads, and writes.
+- Fast Exasol reads support rolling guardrail checks such as floor breach, ceiling breach, z-score deviation, and burst patterns.
+- Render deployment uses a reachable Exasol cloud database so the public dashboard remains persistent across service restarts.
+
+For local development, Exasol Personal can run the same schema and seed scripts. For the hosted demo, the app uses the same Exasol-compatible connection path through environment variables.
+
 ## Team Components
 
 - `divija`: Data layer, Exasol schema, seed data, bot simulator, live guardrail checks.

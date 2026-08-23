@@ -1,0 +1,15 @@
+{
+  "decision_id": "submission-sample-001",
+  "sku_id": "SKU-0001",
+  "event_time": "2026-08-23 23:59:00",
+  "old_price": 313.4,
+  "new_price": 563.58,
+  "reason_code": "ANOMALY_INJECTED_SPIKE",
+  "flagged": true,
+  "flag_reason": "Price 563.58 is 30.5% above competitor price 431.85",
+  "confidence": 0.91,
+  "severity": 0.8,
+  "demand_signal": 0.33,
+  "competitor_price": 431.85,
+  "inventory_level": 138
+}
