@@ -32,19 +32,16 @@ const els = {
 async function loadData() {
   try {
     const query = state.risk ? `?risk_level=${state.risk}` : "";
-    const [healthRes, analyticsRes, decisionsRes] = await Promise.all([
-      fetch("/health"),
-      fetch("/analytics"),
-      fetch(`/decisions${query}`),
-    ]);
+    const feedRes = await fetch(`/dashboard/feed${query}`);
 
-    if (!healthRes.ok || !analyticsRes.ok || !decisionsRes.ok) {
+    if (!feedRes.ok) {
       throw new Error("API request failed");
     }
 
-    state.health = await healthRes.json();
-    state.analytics = await analyticsRes.json();
-    state.decisions = await decisionsRes.json();
+    const feed = await feedRes.json();
+    state.health = feed.health;
+    state.analytics = feed.analytics;
+    state.decisions = feed.decisions;
     if (!state.selectedId && state.decisions.length) {
       state.selectedId = state.decisions[0].decision_id;
     }

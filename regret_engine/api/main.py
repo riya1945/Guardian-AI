@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -16,7 +17,7 @@ from regret_engine.src.integration import (
 from regret_engine.src.persistence import build_decision_repository
 from regret_engine.src.rag_explainer import RagExplainer, evaluate_explainer
 from regret_engine.src.regret_service import RegretService
-from regret_engine.src.schemas import Decision, DecisionRecord, ExplainRequest
+from regret_engine.src.schemas import AnalyticsSummary, Decision, DecisionRecord, ExplainRequest
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +47,10 @@ app.mount(
 
 @app.get("/health")
 def health() -> dict[str, object]:
+    return _health_payload()
+
+
+def _health_payload(record_count: int | None = None) -> dict[str, object]:
     return {
         "status": "healthy",
         "service": "Guardian-AI",
@@ -57,7 +62,9 @@ def health() -> dict[str, object]:
         "llm_provider": rag_explainer.llm_provider,
         "llm_chain": rag_explainer.llm_chain_names,
         "rag_chunks": len(rag_explainer.chunks),
-        "decision_records": decision_store.record_count,
+        "decision_records": record_count
+        if record_count is not None
+        else decision_store.record_count,
     }
 
 
@@ -174,6 +181,29 @@ def dashboard_metrics() -> dict[str, object]:
         "model_source": regret_service.model_source,
     }
     return payload
+
+
+@app.get("/dashboard/feed")
+def dashboard_feed(
+    limit: int = Query(default=100, ge=1, le=500),
+    risk_level: str | None = Query(default=None),
+) -> dict[str, object]:
+    if risk_level and risk_level.upper() not in {"LOW", "MEDIUM", "HIGH"}:
+        raise HTTPException(status_code=400, detail="risk_level must be LOW, MEDIUM, or HIGH")
+
+    records = decision_store.list_records(limit=500)
+    filtered_records = [
+        record for record in records if not risk_level or record.risk_level == risk_level.upper()
+    ][:limit]
+    summary = _analytics_from_records(records)
+    analytics_payload = (
+        summary.model_dump() if hasattr(summary, "model_dump") else summary.dict()
+    )
+    return {
+        "health": _health_payload(record_count=len(records)),
+        "analytics": analytics_payload,
+        "decisions": filtered_records,
+    }
 
 
 @app.get("/dashboard/interventions")
@@ -294,3 +324,67 @@ def _dashboard_record(record: DecisionRecord) -> dict[str, object]:
         if record.explanation
         else 0,
     }
+
+
+def _analytics_from_records(records: list[DecisionRecord]) -> AnalyticsSummary:
+    if not records:
+        return AnalyticsSummary(
+            total_decisions=0,
+            average_regret=0.0,
+            average_confidence=0.0,
+            high_risk_decisions=0,
+            explanation_coverage=0.0,
+            retrieved_evidence_sources=0,
+            risk_breakdown={"LOW": 0, "MEDIUM": 0, "HIGH": 0},
+            regret_over_time=[],
+            factor_breakdown=[],
+        )
+
+    risk_counts = Counter(record.risk_level for record in records)
+    explained = [
+        record
+        for record in records
+        if record.explanation and record.explanation.status == "grounded"
+    ]
+    evidence_sources = {
+        item.source
+        for record in records
+        if record.explanation
+        for item in record.explanation.supporting_evidence
+    }
+    factor_totals: Counter[str] = Counter()
+    for record in records:
+        for factor in record.factors:
+            factor_totals[factor.factor] += factor.magnitude
+
+    return AnalyticsSummary(
+        total_decisions=len(records),
+        average_regret=round(
+            sum(record.regret_score for record in records) / len(records),
+            2,
+        ),
+        average_confidence=round(
+            sum(record.confidence for record in records) / len(records),
+            3,
+        ),
+        high_risk_decisions=risk_counts.get("HIGH", 0),
+        explanation_coverage=round(len(explained) / len(records), 3),
+        retrieved_evidence_sources=len(evidence_sources),
+        risk_breakdown={
+            "LOW": risk_counts.get("LOW", 0),
+            "MEDIUM": risk_counts.get("MEDIUM", 0),
+            "HIGH": risk_counts.get("HIGH", 0),
+        },
+        regret_over_time=[
+            {
+                "timestamp": record.timestamp,
+                "regret": round(record.regret_score, 2),
+                "confidence": record.confidence,
+            }
+            for record in sorted(records, key=lambda item: item.timestamp)
+        ],
+        factor_breakdown=[
+            {"factor": factor, "magnitude": round(magnitude, 3)}
+            for factor, magnitude in factor_totals.most_common()
+        ],
+    )

@@ -121,6 +121,7 @@ def test_dashboard_compatibility_routes_do_not_404() -> None:
         "/dashboard/model",
         "/dashboard/ab",
         "/dashboard/settings",
+        "/dashboard/feed",
         "/favicon.ico",
     ]
 
@@ -134,3 +135,7 @@ def test_dashboard_compatibility_routes_do_not_404() -> None:
     assert client.get("/dashboard/model").json()["model_loaded"] is True
     assert "cohorts" in client.get("/dashboard/ab").json()
     assert "exasol_password" not in client.get("/dashboard/settings").json()
+    feed = client.get("/dashboard/feed").json()
+    assert feed["health"]["status"] == "healthy"
+    assert feed["analytics"]["total_decisions"] > 0
+    assert feed["decisions"]
