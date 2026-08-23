@@ -104,9 +104,7 @@ class GroqProvider:
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json=payload,
             )
-        if response.status_code in {408, 409, 429, 500, 502, 503, 504}:
-            raise LlmUnavailable(response.text[:400])
-        response.raise_for_status()
+        _raise_provider_error(response, "Groq")
         content = response.json()["choices"][0]["message"]["content"]
         return _parse_draft(content)
 
@@ -152,9 +150,7 @@ class GeminiChatProvider:
                 params={"key": self.api_key},
                 json=payload,
             )
-        if response.status_code in {408, 409, 429, 500, 502, 503, 504}:
-            raise LlmUnavailable(response.text[:400])
-        response.raise_for_status()
+        _raise_provider_error(response, "Gemini")
         content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
         return _parse_draft(content)
 
@@ -199,6 +195,20 @@ def build_provider_chain(settings: Settings) -> ProviderChain:
 def _parse_draft(content: str) -> LlmDraft:
     payload = json.loads(content)
     return LlmDraft.model_validate(payload)
+
+
+def _raise_provider_error(response: httpx.Response, provider: str) -> None:
+    if response.status_code < 400:
+        return
+    detail = ""
+    try:
+        payload = response.json()
+        detail = payload.get("error", {}).get("message", "")
+    except (ValueError, AttributeError):
+        detail = "non-JSON error response"
+    raise LlmUnavailable(
+        f"{provider} request failed with status {response.status_code}: {detail}"
+    )
 
 
 def _system_prompt() -> str:

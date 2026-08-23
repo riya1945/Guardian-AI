@@ -50,6 +50,7 @@ class HashEmbeddingProvider:
 
 class GeminiEmbeddingProvider:
     provider_name = "gemini"
+    batch_size = 32
 
     def __init__(
         self,
@@ -64,10 +65,49 @@ class GeminiEmbeddingProvider:
         self.timeout = timeout
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [self._embed_one(text) for text in texts]
+        embeddings: list[list[float]] = []
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start : start + self.batch_size]
+            embeddings.extend(self._embed_batch(batch, task_type="RETRIEVAL_DOCUMENT"))
+        return embeddings
 
     def embed_query(self, text: str) -> list[float]:
         return self._embed_one(text, task_type="RETRIEVAL_QUERY")
+
+    def _embed_batch(
+        self,
+        texts: list[str],
+        task_type: str,
+    ) -> list[list[float]]:
+        if not texts:
+            return []
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/"
+            f"models/{self.model}:batchEmbedContents"
+        )
+        payload = {
+            "requests": [
+                {
+                    "model": f"models/{self.model}",
+                    "content": {"parts": [{"text": text}]},
+                    "taskType": task_type,
+                    "outputDimensionality": self.dimension,
+                }
+                for text in texts
+            ]
+        }
+        with httpx.Client(timeout=self.timeout) as client:
+            response = client.post(
+                url,
+                params={"key": self.api_key},
+                json=payload,
+            )
+        _raise_gemini_error(response)
+        embeddings = response.json()["embeddings"]
+        vectors = [[float(value) for value in item["values"]] for item in embeddings]
+        for vector in vectors:
+            self._validate_dimension(vector)
+        return vectors
 
     def _embed_one(
         self,
@@ -89,13 +129,31 @@ class GeminiEmbeddingProvider:
                 params={"key": self.api_key},
                 json=payload,
             )
-        response.raise_for_status()
+        _raise_gemini_error(response)
         values = response.json()["embedding"]["values"]
-        if len(values) != self.dimension:
+        vector = [float(value) for value in values]
+        self._validate_dimension(vector)
+        return vector
+
+    def _validate_dimension(self, vector: list[float]) -> None:
+        if len(vector) != self.dimension:
             raise ValueError(
-                f"Gemini returned {len(values)} dimensions; expected {self.dimension}."
+                f"Gemini returned {len(vector)} dimensions; expected {self.dimension}."
             )
-        return [float(value) for value in values]
+
+
+def _raise_gemini_error(response: httpx.Response) -> None:
+    if response.status_code < 400:
+        return
+    detail = ""
+    try:
+        payload = response.json()
+        detail = payload.get("error", {}).get("message", "")
+    except (ValueError, AttributeError):
+        detail = "non-JSON error response"
+    raise RuntimeError(
+        f"Gemini embedding request failed with status {response.status_code}: {detail}"
+    )
 
 
 def get_embedding_provider(settings: Settings) -> EmbeddingProvider:

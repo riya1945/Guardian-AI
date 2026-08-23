@@ -199,8 +199,33 @@ class ExasolVectorStore:
     def ingest(self, chunks: list[KnowledgeChunk]) -> None:
         if not chunks:
             return
-        embeddings = self.embedding_provider.embed([chunk.content for chunk in chunks])
-        for chunk, embedding in zip(chunks, embeddings, strict=True):
+        current_ids = {chunk.source for chunk in chunks}
+        existing = self._existing_chunks()
+        stale_ids = set(existing) - current_ids
+        for chunk_id in stale_ids:
+            self._conn.execute(
+                """
+                DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
+                WHERE CHUNK_ID={chunk_id!s}
+                """,
+                {
+                    "schema": self.settings.exasol_schema,
+                    "chunk_id": chunk_id,
+                },
+            )
+
+        chunks_to_write = [
+            chunk
+            for chunk in chunks
+            if existing.get(chunk.source) != chunk.content
+        ]
+        if not chunks_to_write:
+            return
+
+        embeddings = self.embedding_provider.embed(
+            [chunk.content for chunk in chunks_to_write]
+        )
+        for chunk, embedding in zip(chunks_to_write, embeddings, strict=True):
             self._conn.execute(
                 """
                 DELETE FROM {schema!i}.KNOWLEDGE_CHUNKS
@@ -240,6 +265,20 @@ class ExasolVectorStore:
                     "embedding_json": json.dumps(embedding),
                 },
             )
+
+    def _existing_chunks(self) -> dict[str, str]:
+        rows = self._conn.execute(
+            """
+            SELECT CHUNK_ID, CONTENT
+            FROM {schema!i}.KNOWLEDGE_CHUNKS
+            WHERE EMBEDDING_MODEL={embedding_model!s}
+            """,
+            {
+                "schema": self.settings.exasol_schema,
+                "embedding_model": self.embedding_provider.provider_name,
+            },
+        ).fetchall()
+        return {str(row["CHUNK_ID"]): str(row["CONTENT"]) for row in rows}
 
     def retrieve(
         self,

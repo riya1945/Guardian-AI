@@ -23,7 +23,7 @@ def _settings(**overrides: object) -> Settings:
         "exasol_certificate_validation": True,
         "llm_chain": ("deterministic",),
         "groq_api_key": None,
-        "groq_model": "llama-3.1-8b-instant",
+        "groq_model": "openai/gpt-oss-20b",
         "gemini_api_key": None,
         "gemini_chat_model": "gemini-2.5-flash-lite",
         "gemini_embedding_model": "gemini-embedding-001",

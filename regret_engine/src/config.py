@@ -49,7 +49,7 @@ def load_settings() -> Settings:
             if item.strip()
         ),
         groq_api_key=os.getenv("GROQ_API_KEY"),
-        groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        groq_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
         gemini_chat_model=os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash-lite"),
         gemini_embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"),

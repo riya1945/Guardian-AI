@@ -180,7 +180,7 @@ GUARDIAN_EMBEDDING_PROVIDER  hash or gemini
 GUARDIAN_EMBEDDING_DIM       768
 LLM_CHAIN                    groq,gemini,deterministic
 GROQ_API_KEY                 optional
-GROQ_MODEL                   llama-3.1-8b-instant by default
+GROQ_MODEL                   openai/gpt-oss-20b by default
 GEMINI_API_KEY               optional
 GEMINI_CHAT_MODEL            gemini-2.5-flash-lite by default
 GEMINI_EMBEDDING_MODEL       gemini-embedding-001 by default
