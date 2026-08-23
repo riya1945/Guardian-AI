@@ -12,9 +12,9 @@ services:
       - key: GUARDIAN_AUTO_MIGRATE
         value: "true"
       - key: GUARDIAN_STORAGE_BACKEND
-        value: exasol
+        value: auto
       - key: GUARDIAN_VECTOR_BACKEND
-        value: exasol
+        value: auto
       - key: GUARDIAN_EMBEDDING_PROVIDER
         value: hash
       - key: GUARDIAN_EMBEDDING_DIM

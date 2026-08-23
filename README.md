@@ -170,7 +170,7 @@ GROQ_API_KEY
 GEMINI_API_KEY
 ```
 
-For a cloud Render deploy, `EXASOL_DSN` must be a host reachable from Render. `127.0.0.1:8563` only works from the same machine running Exasol and will not work from Render.
+For a cloud Render deploy, `EXASOL_DSN` must be a host reachable from Render. `127.0.0.1:8563` only works from the same machine running Exasol and will not work from Render. The Render blueprint uses `GUARDIAN_STORAGE_BACKEND=auto` and `GUARDIAN_VECTOR_BACKEND=auto`, so the deployed demo remains usable with in-memory persistence until a reachable Exasol host or tunnel is supplied.
 
 The Render blueprint defaults `GUARDIAN_EMBEDDING_PROVIDER=hash` so the service does not fail startup when Gemini embedding quota is exhausted. To use Gemini embeddings in Render, set:
 
