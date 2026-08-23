@@ -182,6 +182,7 @@ pandas
 numpy
 python-dotenv
 pydantic
+requests
 ```
 
 Install:
