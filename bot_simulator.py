@@ -6,11 +6,14 @@ import random
 import uuid
 import time
 import threading
+import requests
 from datetime import datetime
 from app.db import get_connection
 from app.guardrail import check_decision, flag_decision
 
 conn = get_connection()
+
+INTEGRATION_URL = "http://localhost:9000/integrations/guardrail-decision"  # update to teammate's actual host/port
 
 def fmt(dt):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -24,35 +27,44 @@ def get_latest_price(sku_id):
     """).fetchone()
     return float(result[0]) if result else 500.0
 
-def get_latest_cost(sku_id):
+def get_latest_market_context(sku_id):
+    """Returns (cost_price, competitor_price, demand_signal, inventory_level) for a SKU."""
     result = conn.execute(f"""
-        SELECT cost_price FROM market_context
+        SELECT cost_price, competitor_price, demand_signal, inventory_level
+        FROM market_context
         WHERE sku_id = '{sku_id}'
         ORDER BY event_time DESC
         LIMIT 1
     """).fetchone()
-    return float(result[0]) if result else 300.0
+    if result:
+        cost_price, competitor_price, demand_signal, inventory_level = result
+        return (
+            float(cost_price) if cost_price is not None else 300.0,
+            float(competitor_price) if competitor_price is not None else 500.0,
+            float(demand_signal) if demand_signal is not None else 0.5,
+            int(inventory_level) if inventory_level is not None else 100,
+        )
+    return 300.0, 500.0, 0.5, 100
 
-def get_latest_competitor_price(sku_id):
-    result = conn.execute(f"""
-        SELECT competitor_price FROM market_context
-        WHERE sku_id = '{sku_id}'
-        ORDER BY event_time DESC
-        LIMIT 1
-    """).fetchone()
-    return float(result[0]) if result else 500.0
+def push_to_integration(payload):
+    """Send the flagged/unflagged decision to the shared handoff endpoint. Non-blocking failure — logs and continues."""
+    try:
+        response = requests.post(INTEGRATION_URL, json=payload, timeout=3)
+        if response.status_code >= 400:
+            print(f"  [integration warning] {response.status_code}: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"  [integration error] Could not reach {INTEGRATION_URL}: {e}")
 
 def make_decision(sku_id, anomaly_type=None):
     old_price = get_latest_price(sku_id)
-    cost = get_latest_cost(sku_id)
+    cost, competitor_price, demand_signal, inventory_level = get_latest_market_context(sku_id)
     event_time = datetime.now()
 
     if anomaly_type == "crash":
         new_price = round(cost * random.uniform(0.5, 0.8), 2)
         reason_code = "ANOMALY_INJECTED_CRASH"
     elif anomaly_type == "spike":
-        competitor = get_latest_competitor_price(sku_id)
-        new_price = round(competitor * random.uniform(1.3, 1.6), 2)
+        new_price = round(competitor_price * random.uniform(1.3, 1.6), 2)
         reason_code = "ANOMALY_INJECTED_SPIKE"
     else:
         price_change_pct = random.uniform(-0.03, 0.03)
@@ -60,9 +72,11 @@ def make_decision(sku_id, anomaly_type=None):
         reason_code = "ROUTINE_ADJUSTMENT"
 
     decision_id = str(uuid.uuid4())
+    confidence = round(random.uniform(0.7, 0.99), 4)
+
     row = (
         decision_id, sku_id, fmt(event_time), old_price, new_price,
-        reason_code, False, None, round(random.uniform(0.7, 0.99), 4), 0.0
+        reason_code, False, None, confidence, 0.0
     )
     conn.ext.insert_multi("decisions", [row])
 
@@ -72,6 +86,24 @@ def make_decision(sku_id, anomaly_type=None):
 
     if flagged:
         flag_decision(conn, decision_id, reason, severity)
+
+    # --- Build and send the shared handoff payload ---
+    payload = {
+        "decision_id": decision_id,
+        "sku_id": sku_id,
+        "event_time": fmt(event_time),
+        "old_price": old_price,
+        "new_price": new_price,
+        "reason_code": reason_code,
+        "flagged": flagged,
+        "flag_reason": reason,
+        "confidence": confidence,
+        "severity": severity,
+        "demand_signal": demand_signal,
+        "competitor_price": competitor_price,
+        "inventory_level": inventory_level,
+    }
+    push_to_integration(payload)
 
     return decision_id, sku_id, old_price, new_price, flagged, reason, severity, elapsed_ms
 
@@ -100,7 +132,7 @@ if __name__ == "__main__":
         sku = random.choice(SKU_IDS)
         anomaly_type = inject_flag["type"]
         if anomaly_type:
-            inject_flag["type"] = None  # reset after firing
+            inject_flag["type"] = None
 
         decision_id, sku_id, old_price, new_price, flagged, reason, severity, elapsed_ms = make_decision(sku, anomaly_type=anomaly_type)
 
